@@ -771,6 +771,246 @@ body.dark .tag{
 }
 
 /* ===================================== */
+/* CELEBRATION PHOTO */
+/* ===================================== */
+
+.celebrateHeader{
+
+    text-align:center;
+
+}
+
+.celebrateEmoji{
+
+    font-size:48px;
+
+    margin-bottom:8px;
+
+}
+
+.celebrateSub{
+
+    color:var(--sub);
+
+    margin-top:8px;
+
+    line-height:1.6;
+
+}
+
+.photoUpload{
+
+    display:block;
+
+    cursor:pointer;
+
+}
+
+.photoPlaceholder{
+
+    display:flex;
+
+    flex-direction:column;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:10px;
+
+    min-height:180px;
+
+    border-radius:22px;
+
+    border:2px dashed rgba(79,140,255,.35);
+
+    background:#F5F7FB;
+
+    color:var(--sub);
+
+    transition:.25s;
+
+}
+
+body.dark .photoPlaceholder{
+
+    background:#334155;
+
+    border-color:rgba(111,168,255,.35);
+
+}
+
+.photoPlaceholder span{
+
+    font-size:36px;
+
+}
+
+.photoPreview{
+
+    width:100%;
+
+    max-height:240px;
+
+    object-fit:cover;
+
+    border-radius:22px;
+
+    box-shadow:0 10px 25px rgba(0,0,0,.08);
+
+}
+
+.hidden{
+
+    display:none !important;
+
+}
+
+.removePhotoButton{
+
+    margin-top:10px;
+
+    color:var(--red);
+
+    font-size:14px;
+
+    font-weight:600;
+
+}
+
+.bucketPhoto{
+
+    margin-bottom:16px;
+
+    border-radius:18px;
+
+    overflow:hidden;
+
+    cursor:pointer;
+
+    position:relative;
+
+}
+
+.bucketPhoto img{
+
+    width:100%;
+
+    max-height:200px;
+
+    object-fit:cover;
+
+    display:block;
+
+    transition:.25s;
+
+}
+
+.bucketPhoto:hover img{
+
+    transform:scale(1.02);
+
+}
+
+.bucketPhotoLabel{
+
+    position:absolute;
+
+    left:12px;
+
+    bottom:12px;
+
+    padding:6px 12px;
+
+    border-radius:999px;
+
+    background:rgba(0,0,0,.55);
+
+    color:white;
+
+    font-size:12px;
+
+    font-weight:600;
+
+    backdrop-filter:blur(8px);
+
+}
+
+.photoButton{
+
+    background:var(--purple) !important;
+
+}
+
+.photoViewModal{
+
+    align-items:center;
+
+}
+
+.photoViewContent{
+
+    position:relative;
+
+    width:calc(100% - 44px);
+
+    max-width:760px;
+
+    text-align:center;
+
+}
+
+.photoViewContent img{
+
+    width:100%;
+
+    max-height:70vh;
+
+    object-fit:contain;
+
+    border-radius:24px;
+
+    box-shadow:var(--shadow);
+
+}
+
+.photoViewContent p{
+
+    margin-top:16px;
+
+    color:white;
+
+    font-size:18px;
+
+    font-weight:600;
+
+}
+
+.photoViewClose{
+
+    position:absolute;
+
+    top:-48px;
+
+    right:0;
+
+    width:40px;
+
+    height:40px;
+
+    border-radius:50%;
+
+    background:rgba(255,255,255,.2);
+
+    color:white;
+
+    font-size:18px;
+
+    backdrop-filter:blur(8px);
+
+}
+
+/* ===================================== */
 /* STATS PAGE */
 /* ===================================== */
 

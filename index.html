@@ -79,7 +79,7 @@
 
                     오늘도<br>
 
-                    꿈을 이루어보세요.
+                    하나의 꿈을 이루어보세요.
 
                 </h1>
 
@@ -533,6 +533,136 @@
                 </button>
 
             </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- COMPLETE CELEBRATION MODAL -->
+    <!-- ========================= -->
+
+    <div
+        class="modal"
+        id="celebrateModal">
+
+        <div class="modalSheet">
+
+            <div class="sheetHeader celebrateHeader">
+
+                <div class="celebrateEmoji">🎉</div>
+
+                <h2 id="celebrateTitle">
+
+                    목표 달성!
+
+                </h2>
+
+                <p class="celebrateSub">
+
+                    기념 사진을 남겨보세요.
+
+                </p>
+
+            </div>
+
+            <div class="inputGroup">
+
+                <label>
+
+                    기념 사진 (선택)
+
+                </label>
+
+                <label
+                    class="photoUpload"
+                    id="photoUploadArea">
+
+                    <input
+                        type="file"
+                        id="photoInput"
+                        accept="image/*"
+                        hidden>
+
+                    <div
+                        class="photoPlaceholder"
+                        id="photoPlaceholder">
+
+                        <span>📷</span>
+
+                        <p>
+
+                            탭해서 사진 선택
+
+                        </p>
+
+                    </div>
+
+                    <img
+                        id="photoPreview"
+                        class="photoPreview hidden"
+                        alt="기념 사진 미리보기">
+
+                </label>
+
+                <button
+                    type="button"
+                    id="removePhotoButton"
+                    class="removePhotoButton hidden">
+
+                    사진 제거
+
+                </button>
+
+            </div>
+
+            <div class="modalButtons">
+
+                <button
+                    id="celebrateSaveButton"
+                    class="primaryButton">
+
+                    완료 저장
+
+                </button>
+
+                <button
+                    id="celebrateSkipButton"
+                    class="secondaryButton">
+
+                    사진 없이 완료
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- PHOTO VIEW MODAL -->
+    <!-- ========================= -->
+
+    <div
+        class="modal photoViewModal"
+        id="photoViewModal">
+
+        <div class="photoViewContent">
+
+            <button
+                id="closePhotoView"
+                class="photoViewClose">
+
+                ✕
+
+            </button>
+
+            <img
+                id="photoViewImage"
+                alt="기념 사진">
+
+            <p id="photoViewTitle"></p>
 
         </div>
 

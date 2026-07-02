@@ -4,11 +4,17 @@
 ======================================================= */
 
 const STORAGE_KEY = "bucket_v02";
+const PHOTO_DB_NAME = "bucket_photos_v1";
+const PHOTO_STORE = "photos";
+const PHOTO_MAX_SIZE = 1200;
+const PHOTO_QUALITY = 0.75;
 
 let buckets = [];
 let editingId = null;
 let currentCategory = "전체";
 let sortMode = "latest";
+let completingBucketId = null;
+let pendingPhotoData = null;
 
 const quotes = [
     "오늘의 작은 한 걸음이 내일의 큰 변화를 만듭니다.",
@@ -102,6 +108,417 @@ document.getElementById("importFile");
 
 const deleteAllButton =
 document.getElementById("deleteAllButton");
+
+const celebrateModal =
+document.getElementById("celebrateModal");
+
+const celebrateTitle =
+document.getElementById("celebrateTitle");
+
+const photoInput =
+document.getElementById("photoInput");
+
+const photoPreview =
+document.getElementById("photoPreview");
+
+const photoPlaceholder =
+document.getElementById("photoPlaceholder");
+
+const removePhotoButton =
+document.getElementById("removePhotoButton");
+
+const celebrateSaveButton =
+document.getElementById("celebrateSaveButton");
+
+const celebrateSkipButton =
+document.getElementById("celebrateSkipButton");
+
+const photoViewModal =
+document.getElementById("photoViewModal");
+
+const photoViewImage =
+document.getElementById("photoViewImage");
+
+const photoViewTitle =
+document.getElementById("photoViewTitle");
+
+const closePhotoView =
+document.getElementById("closePhotoView");
+
+/* ============================= */
+
+function openPhotoDB(){
+
+    return new Promise((resolve, reject)=>{
+
+        const request=
+        indexedDB.open(PHOTO_DB_NAME, 1);
+
+        request.onupgradeneeded=()=>{
+
+            const db=request.result;
+
+            if(!db.objectStoreNames.contains(PHOTO_STORE)){
+
+                db.createObjectStore(PHOTO_STORE);
+
+            }
+
+        };
+
+        request.onsuccess=()=>resolve(request.result);
+
+        request.onerror=()=>reject(request.error);
+
+    });
+
+}
+
+async function savePhoto(bucketId, dataUrl){
+
+    const db=await openPhotoDB();
+
+    return new Promise((resolve, reject)=>{
+
+        const tx=db.transaction(PHOTO_STORE, "readwrite");
+
+        tx.objectStore(PHOTO_STORE).put(dataUrl, bucketId);
+
+        tx.oncomplete=()=>{
+
+            db.close();
+
+            resolve();
+
+        };
+
+        tx.onerror=()=>reject(tx.error);
+
+    });
+
+}
+
+async function getPhoto(bucketId){
+
+    const db=await openPhotoDB();
+
+    return new Promise((resolve, reject)=>{
+
+        const tx=db.transaction(PHOTO_STORE, "readonly");
+
+        const request=
+        tx.objectStore(PHOTO_STORE).get(bucketId);
+
+        request.onsuccess=()=>{
+
+            db.close();
+
+            resolve(request.result || null);
+
+        };
+
+        request.onerror=()=>reject(request.error);
+
+    });
+
+}
+
+async function deletePhoto(bucketId){
+
+    const db=await openPhotoDB();
+
+    return new Promise((resolve, reject)=>{
+
+        const tx=db.transaction(PHOTO_STORE, "readwrite");
+
+        tx.objectStore(PHOTO_STORE).delete(bucketId);
+
+        tx.oncomplete=()=>{
+
+            db.close();
+
+            resolve();
+
+        };
+
+        tx.onerror=()=>reject(tx.error);
+
+    });
+
+}
+
+function compressImage(file){
+
+    return new Promise((resolve, reject)=>{
+
+        const reader=new FileReader();
+
+        reader.onload=()=>{
+
+            const img=new Image();
+
+            img.onload=()=>{
+
+                const scale=
+                Math.min(
+                    1,
+                    PHOTO_MAX_SIZE /
+                    Math.max(img.width, img.height)
+                );
+
+                const canvas=
+                document.createElement("canvas");
+
+                canvas.width=
+                Math.round(img.width * scale);
+
+                canvas.height=
+                Math.round(img.height * scale);
+
+                const ctx=
+                canvas.getContext("2d");
+
+                ctx.drawImage(
+                    img,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
+
+                resolve(
+                    canvas.toDataURL(
+                        "image/jpeg",
+                        PHOTO_QUALITY
+                    )
+                );
+
+            };
+
+            img.onerror=reject;
+
+            img.src=reader.result;
+
+        };
+
+        reader.onerror=reject;
+
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+function resetCelebrateForm(){
+
+    pendingPhotoData=null;
+
+    photoInput.value="";
+
+    photoPreview.src="";
+
+    photoPreview.classList.add("hidden");
+
+    photoPlaceholder.classList.remove("hidden");
+
+    removePhotoButton.classList.add("hidden");
+
+}
+
+function openCelebrateModal(item){
+
+    completingBucketId=item.id;
+
+    celebrateTitle.textContent=
+    `"${item.title}" 달성!`;
+
+    resetCelebrateForm();
+
+    celebrateModal.classList.add("show");
+
+}
+
+function closeCelebrateModal(){
+
+    celebrateModal.classList.remove("show");
+
+    completingBucketId=null;
+
+    resetCelebrateForm();
+
+}
+
+function openPhotoView(title, dataUrl){
+
+    photoViewTitle.textContent=title;
+
+    photoViewImage.src=dataUrl;
+
+    photoViewModal.classList.add("show");
+
+}
+
+function closePhotoViewModal(){
+
+    photoViewModal.classList.remove("show");
+
+    photoViewImage.src="";
+
+}
+
+async function finishCompletion(withPhoto){
+
+    const item=
+    buckets.find(
+        b=>b.id===completingBucketId
+    );
+
+    if(!item) return;
+
+    item.completed=true;
+
+    if(withPhoto && pendingPhotoData){
+
+        await savePhoto(
+            item.id,
+            pendingPhotoData
+        );
+
+        item.hasPhoto=true;
+
+    }
+
+    saveStorage();
+
+    closeCelebrateModal();
+
+    render();
+
+}
+
+async function renderBucketPhoto(item, container){
+
+    if(!item.completed || !item.hasPhoto) return;
+
+    const dataUrl=await getPhoto(item.id);
+
+    if(!dataUrl){
+
+        item.hasPhoto=false;
+
+        saveStorage();
+
+        return;
+
+    }
+
+    const photoWrap=
+    document.createElement("div");
+
+    photoWrap.className="bucketPhoto";
+
+    photoWrap.innerHTML=`
+
+        <img src="${dataUrl}" alt="기념 사진">
+
+        <span class="bucketPhotoLabel">
+
+            📷 기념 사진
+
+        </span>
+
+    `;
+
+    photoWrap.onclick=()=>{
+
+        openPhotoView(item.title, dataUrl);
+
+    };
+
+    container.insertBefore(
+        photoWrap,
+        container.querySelector(".bucketButtons")
+    );
+
+}
+
+photoInput.onchange=async e=>{
+
+    const file=e.target.files[0];
+
+    if(!file) return;
+
+    if(!file.type.startsWith("image/")){
+
+        alert("이미지 파일만 업로드할 수 있습니다.");
+
+        return;
+
+    }
+
+    try{
+
+        pendingPhotoData=
+        await compressImage(file);
+
+        photoPreview.src=pendingPhotoData;
+
+        photoPreview.classList.remove("hidden");
+
+        photoPlaceholder.classList.add("hidden");
+
+        removePhotoButton.classList.remove("hidden");
+
+    }catch{
+
+        alert("사진을 불러오지 못했습니다.");
+
+    }
+
+};
+
+removePhotoButton.onclick=()=>{
+
+    resetCelebrateForm();
+
+};
+
+celebrateSaveButton.onclick=()=>{
+
+    finishCompletion(true);
+
+};
+
+celebrateSkipButton.onclick=()=>{
+
+    finishCompletion(false);
+
+};
+
+celebrateModal.onclick=e=>{
+
+    if(e.target===celebrateModal){
+
+        closeCelebrateModal();
+
+    }
+
+};
+
+photoViewModal.onclick=e=>{
+
+    if(
+        e.target===photoViewModal ||
+        e.target===closePhotoView
+    ){
+
+        closePhotoViewModal();
+
+    }
+
+};
+
+closePhotoView.onclick=closePhotoViewModal;
 
 /* ============================= */
 
@@ -249,6 +666,9 @@ saveButton.onclick=()=>{
 
         bucket.created=
         buckets[index].created;
+
+        bucket.hasPhoto=
+        buckets[index].hasPhoto;
 
         buckets[index]=bucket;
 
@@ -489,6 +909,11 @@ function render(){
         `bucketCard
         ${item.completed?"completed":""}`;
 
+        const photoButton=
+        item.completed && !item.hasPhoto
+        ? `<button class="photoButton">📷 사진</button>`
+        : "";
+
         card.innerHTML=`
 
 <div class="bucketHeader">
@@ -538,6 +963,8 @@ ${item.completed?"취소":"완료"}
 
 </button>
 
+${photoButton}
+
 <button
 class="editButton">
 
@@ -558,15 +985,23 @@ class="deleteButton">
 
         bucketList.appendChild(card);
 
+        renderBucketPhoto(item, card);
+
         /* 완료 */
 
         card
         .querySelector(".completeButton")
-        .onclick=()=>{
+        .onclick=async()=>{
 
-            item.completed=
+            if(!item.completed){
 
-            !item.completed;
+                openCelebrateModal(item);
+
+                return;
+
+            }
+
+            item.completed=false;
 
             saveStorage();
 
@@ -574,13 +1009,32 @@ class="deleteButton">
 
         };
 
+        const photoBtn=
+        card.querySelector(".photoButton");
+
+        if(photoBtn){
+
+            photoBtn.onclick=()=>{
+
+                openCelebrateModal(item);
+
+            };
+
+        }
+
         /* 삭제 */
 
         card
         .querySelector(".deleteButton")
-        .onclick=()=>{
+        .onclick=async()=>{
 
             if(confirm("삭제하시겠습니까?")){
+
+                if(item.hasPhoto){
+
+                    await deletePhoto(item.id);
+
+                }
 
                 buckets=
 
@@ -917,7 +1371,7 @@ importFile.onchange=e=>{
 /* 전체 삭제 */
 /* ============================= */
 
-deleteAllButton.onclick=()=>{
+deleteAllButton.onclick=async()=>{
 
     if(
 
@@ -928,6 +1382,16 @@ deleteAllButton.onclick=()=>{
     )
 
     ){
+
+        for(const bucket of buckets){
+
+            if(bucket.hasPhoto){
+
+                await deletePhoto(bucket.id);
+
+            }
+
+        }
 
         buckets=[];
 
@@ -1092,6 +1556,10 @@ window.addEventListener(
         if(e.key==="Escape"){
 
             closeModal();
+
+            closeCelebrateModal();
+
+            closePhotoViewModal();
 
         }
 

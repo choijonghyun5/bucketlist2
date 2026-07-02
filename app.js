@@ -4,17 +4,23 @@
 ======================================================= */
 
 const STORAGE_KEY = "bucket_v02";
-const PHOTO_DB_NAME = "bucket_photos_v1";
+const PREMIUM_KEY = "bucket_premium";
+const PHOTO_DB_NAME = "bucket_photos_v2";
 const PHOTO_STORE = "photos";
 const PHOTO_MAX_SIZE = 1200;
 const PHOTO_QUALITY = 0.75;
+const FREE_PHOTO_LIMIT = 1;
+const PREMIUM_PHOTO_LIMIT = 20;
+const BACKUP_VERSION = 3;
 
 let buckets = [];
 let editingId = null;
 let currentCategory = "전체";
 let sortMode = "latest";
 let completingBucketId = null;
-let pendingPhotoData = null;
+let pendingPhotos = [];
+let viewingPhotoId = null;
+let celebrateMode = "complete";
 
 const quotes = [
     "오늘의 작은 한 걸음이 내일의 큰 변화를 만듭니다.",
@@ -124,9 +130,6 @@ document.getElementById("photoPreview");
 const photoPlaceholder =
 document.getElementById("photoPlaceholder");
 
-const removePhotoButton =
-document.getElementById("removePhotoButton");
-
 const celebrateSaveButton =
 document.getElementById("celebrateSaveButton");
 
@@ -145,7 +148,93 @@ document.getElementById("photoViewTitle");
 const closePhotoView =
 document.getElementById("closePhotoView");
 
+const photoPreviewGrid =
+document.getElementById("photoPreviewGrid");
+
+const photoLimitHint =
+document.getElementById("photoLimitHint");
+
+const photoInputLabel =
+document.getElementById("photoInputLabel");
+
+const replacePhotoButton =
+document.getElementById("replacePhotoButton");
+
+const deletePhotoButton =
+document.getElementById("deletePhotoButton");
+
+const replacePhotoInput =
+document.getElementById("replacePhotoInput");
+
+const photoViewBucket =
+document.getElementById("photoViewBucket");
+
+const galleryGrid =
+document.getElementById("galleryGrid");
+
+const galleryCount =
+document.getElementById("galleryCount");
+
+const togglePremium =
+document.getElementById("togglePremium");
+
+const premiumStatus =
+document.getElementById("premiumStatus");
+
+const exportPhotosButton =
+document.getElementById("exportPhotosButton");
+
+const importPhotosButton =
+document.getElementById("importPhotosButton");
+
+const importPhotosFile =
+document.getElementById("importPhotosFile");
+
 /* ============================= */
+
+function isPremium(){
+
+    return localStorage.getItem(PREMIUM_KEY)==="true";
+
+}
+
+function getPhotoLimit(){
+
+    return isPremium()
+    ? PREMIUM_PHOTO_LIMIT
+    : FREE_PHOTO_LIMIT;
+
+}
+
+function updatePremiumUI(){
+
+    if(!premiumStatus) return;
+
+    if(isPremium()){
+
+        premiumStatus.textContent="활성화";
+
+        premiumStatus.classList.add("active");
+
+    }else{
+
+        premiumStatus.textContent="무료";
+
+        premiumStatus.classList.remove("active");
+
+    }
+
+}
+
+function ensurePhotoIds(bucket){
+
+    if(!Array.isArray(bucket.photoIds)){
+
+        bucket.photoIds=[];
+
+    }
+
+}
 
 function openPhotoDB(){
 
@@ -174,7 +263,7 @@ function openPhotoDB(){
 
 }
 
-async function savePhoto(bucketId, dataUrl){
+async function savePhotoRecord(photoId, record){
 
     const db=await openPhotoDB();
 
@@ -182,7 +271,7 @@ async function savePhoto(bucketId, dataUrl){
 
         const tx=db.transaction(PHOTO_STORE, "readwrite");
 
-        tx.objectStore(PHOTO_STORE).put(dataUrl, bucketId);
+        tx.objectStore(PHOTO_STORE).put(record, photoId);
 
         tx.oncomplete=()=>{
 
@@ -198,7 +287,7 @@ async function savePhoto(bucketId, dataUrl){
 
 }
 
-async function getPhoto(bucketId){
+async function getPhotoRecord(photoId){
 
     const db=await openPhotoDB();
 
@@ -207,7 +296,7 @@ async function getPhoto(bucketId){
         const tx=db.transaction(PHOTO_STORE, "readonly");
 
         const request=
-        tx.objectStore(PHOTO_STORE).get(bucketId);
+        tx.objectStore(PHOTO_STORE).get(photoId);
 
         request.onsuccess=()=>{
 
@@ -223,7 +312,7 @@ async function getPhoto(bucketId){
 
 }
 
-async function deletePhoto(bucketId){
+async function deletePhotoRecord(photoId){
 
     const db=await openPhotoDB();
 
@@ -231,7 +320,7 @@ async function deletePhoto(bucketId){
 
         const tx=db.transaction(PHOTO_STORE, "readwrite");
 
-        tx.objectStore(PHOTO_STORE).delete(bucketId);
+        tx.objectStore(PHOTO_STORE).delete(photoId);
 
         tx.oncomplete=()=>{
 
@@ -244,6 +333,402 @@ async function deletePhoto(bucketId){
         tx.onerror=()=>reject(tx.error);
 
     });
+
+}
+
+async function getAllPhotoRecords(){
+
+    const db=await openPhotoDB();
+
+    return new Promise((resolve, reject)=>{
+
+        const tx=db.transaction(PHOTO_STORE, "readonly");
+
+        const request=
+        tx.objectStore(PHOTO_STORE).getAll();
+
+        request.onsuccess=()=>{
+
+            db.close();
+
+            resolve(request.result || []);
+
+        };
+
+        request.onerror=()=>reject(request.error);
+
+    });
+
+}
+
+async function getAllPhotoKeys(){
+
+    const db=await openPhotoDB();
+
+    return new Promise((resolve, reject)=>{
+
+        const tx=db.transaction(PHOTO_STORE, "readonly");
+
+        const request=
+        tx.objectStore(PHOTO_STORE).getAllKeys();
+
+        request.onsuccess=()=>{
+
+            db.close();
+
+            resolve(request.result || []);
+
+        };
+
+        request.onerror=()=>reject(request.error);
+
+    });
+
+}
+
+async function clearAllPhotoRecords(){
+
+    const db=await openPhotoDB();
+
+    return new Promise((resolve, reject)=>{
+
+        const tx=db.transaction(PHOTO_STORE, "readwrite");
+
+        tx.objectStore(PHOTO_STORE).clear();
+
+        tx.oncomplete=()=>{
+
+            db.close();
+
+            resolve();
+
+        };
+
+        tx.onerror=()=>reject(tx.error);
+
+    });
+
+}
+
+async function migrateLegacyPhotos(){
+
+    const legacyDbName="bucket_photos_v1";
+
+    return new Promise(resolve=>{
+
+        const request=indexedDB.open(legacyDbName, 1);
+
+        request.onsuccess=async()=>{
+
+            const db=request.result;
+
+            if(!db.objectStoreNames.contains("photos")){
+
+                db.close();
+
+                resolve();
+
+                return;
+
+            }
+
+            const tx=db.transaction("photos", "readonly");
+
+            const getAll=tx.objectStore("photos").getAll();
+
+            const getKeys=tx.objectStore("photos").getAllKeys();
+
+            Promise.all([
+                new Promise(r=>{
+                    getAll.onsuccess=()=>r(getAll.result || []);
+                }),
+                new Promise(r=>{
+                    getKeys.onsuccess=()=>r(getKeys.result || []);
+                })
+            ]).then(async([values, keys])=>{
+
+                for(let i=0; i<keys.length; i++){
+
+                    const bucketId=Number(keys[i]);
+
+                    const dataUrl=values[i];
+
+                    if(!dataUrl || typeof dataUrl!=="string") continue;
+
+                    const bucket=
+                    buckets.find(b=>b.id===bucketId);
+
+                    if(!bucket) continue;
+
+                    ensurePhotoIds(bucket);
+
+                    if(bucket.photoIds.length>0) continue;
+
+                    const photoId=Date.now()+i;
+
+                    await savePhotoRecord(photoId, {
+                        bucketId,
+                        dataUrl,
+                        createdAt:Date.now()
+                    });
+
+                    bucket.photoIds.push(photoId);
+
+                }
+
+                db.close();
+
+                indexedDB.deleteDatabase(legacyDbName);
+
+                saveStorage();
+
+                resolve();
+
+            });
+
+        };
+
+        request.onerror=()=>resolve();
+
+    });
+
+}
+
+function normalizeBuckets(){
+
+    buckets.forEach(bucket=>{
+
+        ensurePhotoIds(bucket);
+
+        if(bucket.hasPhoto && bucket.photoIds.length===0){
+
+            delete bucket.hasPhoto;
+
+        }
+
+    });
+
+}
+
+function getBucketPhotoCount(bucket){
+
+    ensurePhotoIds(bucket);
+
+    return bucket.photoIds.length;
+
+}
+
+function canAddMorePhotos(bucket, extraCount=1){
+
+    return getBucketPhotoCount(bucket)+extraCount<=getPhotoLimit();
+
+}
+
+function showPremiumMessage(){
+
+    alert(
+        "다중 사진 업로드는 프리미엄 기능입니다.\n\n"+
+        "설정 > 프리미엄에서 활성화할 수 있습니다.\n"+
+        `(무료: 버킷당 ${FREE_PHOTO_LIMIT}장 / 프리미엄: 최대 ${PREMIUM_PHOTO_LIMIT}장)`
+    );
+
+}
+
+async function addPhotoToBucket(bucket, dataUrl){
+
+    ensurePhotoIds(bucket);
+
+    if(!canAddMorePhotos(bucket)){
+
+        if(!isPremium()){
+
+            showPremiumMessage();
+
+        }else{
+
+            alert(`버킷당 최대 ${PREMIUM_PHOTO_LIMIT}장까지 저장할 수 있습니다.`);
+
+        }
+
+        return null;
+
+    }
+
+    const photoId=Date.now()+Math.floor(Math.random()*1000);
+
+    await savePhotoRecord(photoId, {
+        bucketId:bucket.id,
+        dataUrl,
+        createdAt:Date.now()
+    });
+
+    bucket.photoIds.push(photoId);
+
+    saveStorage();
+
+    return photoId;
+
+}
+
+async function removePhotoFromBucket(bucket, photoId){
+
+    ensurePhotoIds(bucket);
+
+    bucket.photoIds=
+    bucket.photoIds.filter(
+        id=>Number(id)!==Number(photoId)
+    );
+
+    await deletePhotoRecord(photoId);
+
+    saveStorage();
+
+}
+
+async function replacePhotoRecord(photoId, dataUrl){
+
+    const record=await getPhotoRecord(photoId);
+
+    if(!record) return false;
+
+    record.dataUrl=dataUrl;
+
+    await savePhotoRecord(photoId, record);
+
+    return true;
+
+}
+
+async function deleteAllBucketPhotos(bucket){
+
+    ensurePhotoIds(bucket);
+
+    for(const photoId of [...bucket.photoIds]){
+
+        await deletePhotoRecord(photoId);
+
+    }
+
+    bucket.photoIds=[];
+
+}
+
+async function getAllPhotosWithMeta(){
+
+    const keys=await getAllPhotoKeys();
+
+    const photos=[];
+
+    for(const photoId of keys){
+
+        const record=await getPhotoRecord(photoId);
+
+        if(!record) continue;
+
+        const bucket=
+        buckets.find(b=>b.id===record.bucketId);
+
+        photos.push({
+            photoId:Number(photoId),
+            bucketId:record.bucketId,
+            dataUrl:record.dataUrl,
+            createdAt:record.createdAt || 0,
+            bucketTitle:bucket?.title || "삭제된 버킷"
+        });
+
+    }
+
+    return photos.sort((a,b)=>b.createdAt-a.createdAt);
+
+}
+
+async function buildPhotosExport(){
+
+    const keys=await getAllPhotoKeys();
+
+    const photos=[];
+
+    for(const photoId of keys){
+
+        const record=await getPhotoRecord(photoId);
+
+        if(!record) continue;
+
+        photos.push({
+            id:Number(photoId),
+            bucketId:record.bucketId,
+            dataUrl:record.dataUrl,
+            createdAt:record.createdAt || Date.now()
+        });
+
+    }
+
+    return photos;
+
+}
+
+async function restorePhotosExport(photos, replace=false){
+
+    if(replace){
+
+        await clearAllPhotoRecords();
+
+        buckets.forEach(bucket=>{
+
+            bucket.photoIds=[];
+
+        });
+
+    }
+
+    for(const photo of photos){
+
+        if(!photo?.dataUrl || !photo?.bucketId) continue;
+
+        const bucket=
+        buckets.find(b=>b.id===photo.bucketId);
+
+        if(!bucket) continue;
+
+        ensurePhotoIds(bucket);
+
+        const photoId=photo.id || Date.now()+Math.floor(Math.random()*1000);
+
+        if(bucket.photoIds.includes(photoId)) continue;
+
+        await savePhotoRecord(photoId, {
+            bucketId:photo.bucketId,
+            dataUrl:photo.dataUrl,
+            createdAt:photo.createdAt || Date.now()
+        });
+
+        bucket.photoIds.push(photoId);
+
+    }
+
+    saveStorage();
+
+}
+
+function downloadJson(data, filename){
+
+    const blob=
+    new Blob(
+        [JSON.stringify(data, null, 2)],
+        { type:"application/json" }
+    );
+
+    const url=URL.createObjectURL(blob);
+
+    const a=document.createElement("a");
+
+    a.href=url;
+
+    a.download=filename;
+
+    a.click();
+
+    URL.revokeObjectURL(url);
 
 }
 
@@ -311,7 +796,7 @@ function compressImage(file){
 
 function resetCelebrateForm(){
 
-    pendingPhotoData=null;
+    pendingPhotos=[];
 
     photoInput.value="";
 
@@ -321,16 +806,140 @@ function resetCelebrateForm(){
 
     photoPlaceholder.classList.remove("hidden");
 
-    removePhotoButton.classList.add("hidden");
+    photoPreviewGrid.innerHTML="";
+
+    photoPreviewGrid.classList.add("hidden");
+
+    updateCelebrateHint();
 
 }
 
-function openCelebrateModal(item){
+function updateCelebrateHint(){
+
+    const bucket=
+    buckets.find(b=>b.id===completingBucketId);
+
+    const existingCount=
+    bucket ? getBucketPhotoCount(bucket) : 0;
+
+    const remaining=
+    getPhotoLimit()-existingCount-pendingPhotos.length;
+
+    if(isPremium()){
+
+        photoLimitHint.textContent=
+        `프리미엄: 버킷당 최대 ${PREMIUM_PHOTO_LIMIT}장 · 추가 가능 ${Math.max(remaining,0)}장`;
+
+        photoLimitHint.classList.add("premiumHint");
+
+        photoInput.multiple=true;
+
+        photoInputLabel.textContent=
+        "기념 사진 (여러 장 선택 가능)";
+
+    }else{
+
+        photoLimitHint.textContent=
+        `무료: 버킷당 ${FREE_PHOTO_LIMIT}장 · 프리미엄에서 여러 장 업로드 가능`;
+
+        photoLimitHint.classList.remove("premiumHint");
+
+        photoInput.multiple=false;
+
+        photoInputLabel.textContent=
+        "기념 사진 (선택)";
+
+    }
+
+}
+
+function renderPendingPreviews(){
+
+    photoPreviewGrid.innerHTML="";
+
+    if(pendingPhotos.length===0){
+
+        photoPreviewGrid.classList.add("hidden");
+
+        if(!photoPreview.src){
+
+            photoPreview.classList.add("hidden");
+
+            photoPlaceholder.classList.remove("hidden");
+
+        }
+
+        return;
+
+    }
+
+    photoPreviewGrid.classList.remove("hidden");
+
+    photoPreview.classList.add("hidden");
+
+    photoPlaceholder.classList.add("hidden");
+
+    pendingPhotos.forEach((dataUrl, index)=>{
+
+        const item=document.createElement("div");
+
+        item.className="previewItem";
+
+        item.innerHTML=`
+
+            <img src="${dataUrl}" alt="미리보기">
+
+            <button
+                type="button"
+                class="previewRemove"
+                data-index="${index}">
+
+                ✕
+
+            </button>
+
+        `;
+
+        item.querySelector(".previewRemove").onclick=e=>{
+
+            e.preventDefault();
+
+            e.stopPropagation();
+
+            pendingPhotos.splice(index, 1);
+
+            renderPendingPreviews();
+
+            updateCelebrateHint();
+
+        };
+
+        photoPreviewGrid.appendChild(item);
+
+    });
+
+}
+
+function openCelebrateModal(item, mode="complete"){
 
     completingBucketId=item.id;
 
+    celebrateMode=mode;
+
     celebrateTitle.textContent=
-    `"${item.title}" 달성!`;
+    mode==="complete"
+    ? `"${item.title}" 달성!`
+    : `"${item.title}" 사진 추가`;
+
+    celebrateSkipButton.textContent=
+    mode==="complete"
+    ? "사진 없이 완료"
+    : "닫기";
+
+    celebrateSaveButton.textContent=
+    mode==="complete"
+    ? "완료 저장"
+    : "사진 저장";
 
     resetCelebrateForm();
 
@@ -344,15 +953,23 @@ function closeCelebrateModal(){
 
     completingBucketId=null;
 
+    celebrateMode="complete";
+
     resetCelebrateForm();
 
 }
 
-function openPhotoView(title, dataUrl){
+function openPhotoView(photo){
 
-    photoViewTitle.textContent=title;
+    viewingPhotoId=photo.photoId;
 
-    photoViewImage.src=dataUrl;
+    photoViewTitle.textContent=photo.bucketTitle;
+
+    photoViewBucket.textContent=
+    new Date(photo.createdAt).toLocaleDateString("ko-KR")+
+    " · 탭하여 관리";
+
+    photoViewImage.src=photo.dataUrl;
 
     photoViewModal.classList.add("show");
 
@@ -363,6 +980,8 @@ function closePhotoViewModal(){
     photoViewModal.classList.remove("show");
 
     photoViewImage.src="";
+
+    viewingPhotoId=null;
 
 }
 
@@ -375,16 +994,21 @@ async function finishCompletion(withPhoto){
 
     if(!item) return;
 
-    item.completed=true;
+    if(celebrateMode==="complete"){
 
-    if(withPhoto && pendingPhotoData){
+        item.completed=true;
 
-        await savePhoto(
-            item.id,
-            pendingPhotoData
-        );
+    }
 
-        item.hasPhoto=true;
+    if(withPhoto && pendingPhotos.length>0){
+
+        for(const dataUrl of pendingPhotos){
+
+            if(!canAddMorePhotos(item)) break;
+
+            await addPhotoToBucket(item, dataUrl);
+
+        }
 
     }
 
@@ -394,49 +1018,80 @@ async function finishCompletion(withPhoto){
 
     render();
 
-}
+    if(document.getElementById("galleryPage").classList.contains("active")){
 
-async function renderBucketPhoto(item, container){
-
-    if(!item.completed || !item.hasPhoto) return;
-
-    const dataUrl=await getPhoto(item.id);
-
-    if(!dataUrl){
-
-        item.hasPhoto=false;
-
-        saveStorage();
-
-        return;
+        renderGallery();
 
     }
 
-    const photoWrap=
-    document.createElement("div");
+}
 
-    photoWrap.className="bucketPhoto";
+async function renderBucketPhotos(item, container){
 
-    photoWrap.innerHTML=`
+    ensurePhotoIds(item);
 
-        <img src="${dataUrl}" alt="기념 사진">
+    if(!item.completed || item.photoIds.length===0) return;
 
-        <span class="bucketPhotoLabel">
+    const photos=[];
 
-            📷 기념 사진
+    for(const photoId of item.photoIds){
 
-        </span>
+        const record=await getPhotoRecord(photoId);
 
-    `;
+        if(!record){
 
-    photoWrap.onclick=()=>{
+            await removePhotoFromBucket(item, photoId);
 
-        openPhotoView(item.title, dataUrl);
+            continue;
 
-    };
+        }
+
+        photos.push({
+            photoId,
+            bucketId:item.id,
+            dataUrl:record.dataUrl,
+            createdAt:record.createdAt || 0,
+            bucketTitle:item.title
+        });
+
+    }
+
+    if(photos.length===0) return;
+
+    const wrap=document.createElement("div");
+
+    wrap.className="bucketPhotoGrid";
+
+    if(photos.length>1 || isPremium()){
+
+        const count=document.createElement("div");
+
+        count.className="bucketPhotoCount";
+
+        count.textContent=
+        `📷 기념 사진 ${photos.length}장`+
+        (!isPremium() ? "" : " · 프리미엄");
+
+        wrap.appendChild(count);
+
+    }
+
+    photos.slice(0, 3).forEach(photo=>{
+
+        const photoWrap=document.createElement("div");
+
+        photoWrap.className="bucketPhoto";
+
+        photoWrap.innerHTML=`<img src="${photo.dataUrl}" alt="기념 사진">`;
+
+        photoWrap.onclick=()=>openPhotoView(photo);
+
+        wrap.appendChild(photoWrap);
+
+    });
 
     container.insertBefore(
-        photoWrap,
+        wrap,
         container.querySelector(".bucketButtons")
     );
 
@@ -444,54 +1099,106 @@ async function renderBucketPhoto(item, container){
 
 photoInput.onchange=async e=>{
 
-    const file=e.target.files[0];
+    const files=[...e.target.files];
 
-    if(!file) return;
+    if(files.length===0) return;
 
-    if(!file.type.startsWith("image/")){
+    const bucket=
+    buckets.find(b=>b.id===completingBucketId);
 
-        alert("이미지 파일만 업로드할 수 있습니다.");
+    const existingCount=
+    bucket ? getBucketPhotoCount(bucket) : 0;
+
+    if(!isPremium() && (existingCount>0 || pendingPhotos.length>0)){
+
+        showPremiumMessage();
+
+        photoInput.value="";
 
         return;
 
     }
 
-    try{
+    for(const file of files){
 
-        pendingPhotoData=
-        await compressImage(file);
+        if(!file.type.startsWith("image/")) continue;
 
-        photoPreview.src=pendingPhotoData;
+        if(!canAddMorePhotos(
+            bucket || { photoIds:[] },
+            pendingPhotos.length+1
+        )){
 
-        photoPreview.classList.remove("hidden");
+            if(!isPremium()){
 
-        photoPlaceholder.classList.add("hidden");
+                showPremiumMessage();
 
-        removePhotoButton.classList.remove("hidden");
+            }else{
 
-    }catch{
+                alert(`버킷당 최대 ${PREMIUM_PHOTO_LIMIT}장까지 저장할 수 있습니다.`);
 
-        alert("사진을 불러오지 못했습니다.");
+            }
+
+            break;
+
+        }
+
+        try{
+
+            const dataUrl=await compressImage(file);
+
+            if(isPremium()){
+
+                pendingPhotos.push(dataUrl);
+
+            }else{
+
+                pendingPhotos=[dataUrl];
+
+                photoPreview.src=dataUrl;
+
+                photoPreview.classList.remove("hidden");
+
+                photoPlaceholder.classList.add("hidden");
+
+            }
+
+        }catch{
+
+            alert("사진을 불러오지 못했습니다.");
+
+        }
 
     }
 
-};
+    if(isPremium()){
 
-removePhotoButton.onclick=()=>{
+        renderPendingPreviews();
 
-    resetCelebrateForm();
+    }
+
+    updateCelebrateHint();
+
+    photoInput.value="";
 
 };
 
 celebrateSaveButton.onclick=()=>{
 
-    finishCompletion(true);
+    finishCompletion(pendingPhotos.length>0 || !!photoPreview.src);
 
 };
 
 celebrateSkipButton.onclick=()=>{
 
-    finishCompletion(false);
+    if(celebrateMode==="complete"){
+
+        finishCompletion(false);
+
+    }else{
+
+        closeCelebrateModal();
+
+    }
 
 };
 
@@ -507,10 +1214,7 @@ celebrateModal.onclick=e=>{
 
 photoViewModal.onclick=e=>{
 
-    if(
-        e.target===photoViewModal ||
-        e.target===closePhotoView
-    ){
+    if(e.target===photoViewModal){
 
         closePhotoViewModal();
 
@@ -519,6 +1223,237 @@ photoViewModal.onclick=e=>{
 };
 
 closePhotoView.onclick=closePhotoViewModal;
+
+replacePhotoButton.onclick=()=>{
+
+    replacePhotoInput.click();
+
+};
+
+replacePhotoInput.onchange=async e=>{
+
+    const file=e.target.files[0];
+
+    if(!file || !viewingPhotoId) return;
+
+    if(!file.type.startsWith("image/")){
+
+        alert("이미지 파일만 업로드할 수 있습니다.");
+
+        return;
+
+    }
+
+    try{
+
+        const dataUrl=await compressImage(file);
+
+        await replacePhotoRecord(viewingPhotoId, dataUrl);
+
+        photoViewImage.src=dataUrl;
+
+        render();
+
+        renderGallery();
+
+        alert("사진이 교체되었습니다.");
+
+    }catch{
+
+        alert("사진을 교체하지 못했습니다.");
+
+    }
+
+    replacePhotoInput.value="";
+
+};
+
+deletePhotoButton.onclick=async()=>{
+
+    if(!viewingPhotoId) return;
+
+    if(!confirm("이 사진을 삭제하시겠습니까?")) return;
+
+    const record=await getPhotoRecord(viewingPhotoId);
+
+    if(record){
+
+        const bucket=
+        buckets.find(b=>b.id===record.bucketId);
+
+        if(bucket){
+
+            await removePhotoFromBucket(
+                bucket,
+                viewingPhotoId
+            );
+
+        }else{
+
+            await deletePhotoRecord(viewingPhotoId);
+
+        }
+
+    }
+
+    closePhotoViewModal();
+
+    render();
+
+    renderGallery();
+
+};
+
+async function renderGallery(){
+
+    if(!galleryGrid) return;
+
+    galleryGrid.innerHTML="";
+
+    const photos=await getAllPhotosWithMeta();
+
+    galleryCount.textContent=`${photos.length}장`;
+
+    if(photos.length===0){
+
+        galleryGrid.innerHTML=`
+
+            <div class="galleryEmpty">
+
+                아직 기념 사진이 없습니다.<br>
+
+                버킷을 완료하고 사진을 남겨보세요.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+    photos.forEach(photo=>{
+
+        const item=document.createElement("div");
+
+        item.className="galleryItem";
+
+        item.innerHTML=`
+
+            <img src="${photo.dataUrl}" alt="${photo.bucketTitle}">
+
+            <div class="galleryOverlay">
+
+                <div class="galleryTitle">
+
+                    ${photo.bucketTitle}
+
+                </div>
+
+                <div class="galleryMeta">
+
+                    ${new Date(photo.createdAt).toLocaleDateString("ko-KR")}
+
+                </div>
+
+            </div>
+
+        `;
+
+        item.onclick=()=>openPhotoView(photo);
+
+        galleryGrid.appendChild(item);
+
+    });
+
+}
+
+togglePremium.onclick=()=>{
+
+    const next=!isPremium();
+
+    localStorage.setItem(
+        PREMIUM_KEY,
+        next ? "true" : "false"
+    );
+
+    updatePremiumUI();
+
+    alert(
+        next
+        ? `프리미엄이 활성화되었습니다. 버킷당 최대 ${PREMIUM_PHOTO_LIMIT}장까지 업로드할 수 있습니다.`
+        : "무료 모드로 전환되었습니다. 버킷당 1장만 저장됩니다."
+    );
+
+};
+
+exportPhotosButton.onclick=async()=>{
+
+    const photos=await buildPhotosExport();
+
+    downloadJson({
+        version:BACKUP_VERSION,
+        type:"photos",
+        exportedAt:Date.now(),
+        photos
+    }, "bucket-photos-backup.json");
+
+};
+
+importPhotosButton.onclick=()=>{
+
+    importPhotosFile.click();
+
+};
+
+importPhotosFile.onchange=e=>{
+
+    const file=e.target.files[0];
+
+    if(!file) return;
+
+    const reader=new FileReader();
+
+    reader.onload=async()=>{
+
+        try{
+
+            const data=JSON.parse(reader.result);
+
+            const photos=
+            data.type==="photos"
+            ? data.photos
+            : data.photos || [];
+
+            if(!Array.isArray(photos) || photos.length===0){
+
+                alert("가져올 사진이 없습니다.");
+
+                return;
+
+            }
+
+            await restorePhotosExport(photos, false);
+
+            render();
+
+            renderGallery();
+
+            alert(`사진 ${photos.length}장 가져오기 완료`);
+
+        }catch{
+
+            alert("올바른 사진 백업 파일이 아닙니다.");
+
+        }
+
+        importPhotosFile.value="";
+
+    };
+
+    reader.readAsText(file);
+
+};
 
 /* ============================= */
 
@@ -650,7 +1585,9 @@ saveButton.onclick=()=>{
         completed:false,
 
         created:
-        Date.now()
+        Date.now(),
+
+        photoIds:[]
 
     };
 
@@ -667,8 +1604,8 @@ saveButton.onclick=()=>{
         bucket.created=
         buckets[index].created;
 
-        bucket.hasPhoto=
-        buckets[index].hasPhoto;
+        bucket.photoIds=
+        [...(buckets[index].photoIds || [])];
 
         buckets[index]=bucket;
 
@@ -910,8 +1847,10 @@ function render(){
         ${item.completed?"completed":""}`;
 
         const photoButton=
-        item.completed && !item.hasPhoto
-        ? `<button class="photoButton">📷 사진</button>`
+        item.completed && canAddMorePhotos(item)
+        ? `<button class="photoButton">${
+            getBucketPhotoCount(item)>0 ? "📷 추가" : "📷 사진"
+        }</button>`
         : "";
 
         card.innerHTML=`
@@ -985,7 +1924,7 @@ class="deleteButton">
 
         bucketList.appendChild(card);
 
-        renderBucketPhoto(item, card);
+        renderBucketPhotos(item, card);
 
         /* 완료 */
 
@@ -1016,7 +1955,7 @@ class="deleteButton">
 
             photoBtn.onclick=()=>{
 
-                openCelebrateModal(item);
+                openCelebrateModal(item, "add");
 
             };
 
@@ -1030,11 +1969,7 @@ class="deleteButton">
 
             if(confirm("삭제하시겠습니까?")){
 
-                if(item.hasPhoto){
-
-                    await deletePhoto(item.id);
-
-                }
+                await deleteAllBucketPhotos(item);
 
                 buckets=
 
@@ -1130,6 +2065,12 @@ navButtons.forEach(button=>{
         if(button.dataset.page==="statsPage"){
 
             renderStats();
+
+        }
+
+        if(button.dataset.page==="galleryPage"){
+
+            renderGallery();
 
         }
 
@@ -1267,49 +2208,18 @@ themeButton.onclick=()=>{
 /* JSON 백업 */
 /* ============================= */
 
-exportButton.onclick=()=>{
+exportButton.onclick=async()=>{
 
-    const data=
+    const photos=await buildPhotosExport();
 
-    JSON.stringify(
-
-    buckets,
-
-    null,
-
-    2
-
-    );
-
-    const blob=
-
-    new Blob(
-
-    [data],
-
-    {
-
-        type:"application/json"
-
-    }
-
-    );
-
-    const url=
-
-    URL.createObjectURL(blob);
-
-    const a=
-
-    document.createElement("a");
-
-    a.href=url;
-
-    a.download="bucket-backup.json";
-
-    a.click();
-
-    URL.revokeObjectURL(url);
+    downloadJson({
+        version:BACKUP_VERSION,
+        type:"full",
+        exportedAt:Date.now(),
+        premium:isPremium(),
+        buckets,
+        photos
+    }, "bucket-full-backup.json");
 
 };
 
@@ -1335,23 +2245,69 @@ importFile.onchange=e=>{
 
     new FileReader();
 
-    reader.onload=()=>{
+    reader.onload=async()=>{
 
         try{
 
-            buckets=
+            const data=JSON.parse(reader.result);
 
-            JSON.parse(
+            if(Array.isArray(data)){
 
-            reader.result
+                buckets=data;
 
-            );
+                normalizeBuckets();
 
-            saveStorage();
+                saveStorage();
 
-            render();
+                render();
 
-            alert("가져오기 완료");
+                alert("가져오기 완료");
+
+                importFile.value="";
+
+                return;
+
+            }
+
+            if(data.buckets){
+
+                buckets=data.buckets;
+
+                normalizeBuckets();
+
+                if(Array.isArray(data.photos)){
+
+                    await restorePhotosExport(
+                        data.photos,
+                        true
+                    );
+
+                }
+
+                if(typeof data.premium==="boolean"){
+
+                    localStorage.setItem(
+                        PREMIUM_KEY,
+                        data.premium ? "true" : "false"
+                    );
+
+                    updatePremiumUI();
+
+                }
+
+                saveStorage();
+
+                render();
+
+                renderGallery();
+
+                alert("전체 백업 가져오기 완료");
+
+            }else{
+
+                alert("올바른 JSON 파일이 아닙니다.");
+
+            }
 
         }
 
@@ -1360,6 +2316,8 @@ importFile.onchange=e=>{
             alert("올바른 JSON 파일이 아닙니다.");
 
         }
+
+        importFile.value="";
 
     };
 
@@ -1385,11 +2343,7 @@ deleteAllButton.onclick=async()=>{
 
         for(const bucket of buckets){
 
-            if(bucket.hasPhoto){
-
-                await deletePhoto(bucket.id);
-
-            }
+            await deleteAllBucketPhotos(bucket);
 
         }
 
@@ -1531,11 +2485,17 @@ ${percent}% 완료
 /* 최초 실행 */
 /* ============================= */
 
-function init(){
+async function init(){
 
     loadStorage();
 
+    normalizeBuckets();
+
+    await migrateLegacyPhotos();
+
     applyTheme();
+
+    updatePremiumUI();
 
     render();
 
@@ -1614,5 +2574,5 @@ window.addEventListener(
 setViewportHeight();
 
 /* ============================= */
-/* V0.2 END */
+/* V0.3 END */
 /* ============================= */

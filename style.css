@@ -1010,6 +1010,336 @@ body.dark .photoPlaceholder{
 
 }
 
+.photoLimitHint{
+
+    font-size:13px;
+
+    color:var(--sub);
+
+    margin-bottom:4px;
+
+}
+
+.photoLimitHint.premiumHint{
+
+    color:var(--purple);
+
+}
+
+.photoPreviewGrid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3, 1fr);
+
+    gap:10px;
+
+    margin-top:12px;
+
+}
+
+.previewItem{
+
+    position:relative;
+
+    border-radius:16px;
+
+    overflow:hidden;
+
+    aspect-ratio:1;
+
+}
+
+.previewItem img{
+
+    width:100%;
+
+    height:100%;
+
+    object-fit:cover;
+
+    display:block;
+
+}
+
+.previewRemove{
+
+    position:absolute;
+
+    top:6px;
+
+    right:6px;
+
+    width:28px;
+
+    height:28px;
+
+    border-radius:50%;
+
+    background:rgba(0,0,0,.55);
+
+    color:white;
+
+    font-size:14px;
+
+}
+
+.bucketPhotoGrid{
+
+    display:grid;
+
+    grid-template-columns:repeat(3, 1fr);
+
+    gap:8px;
+
+    margin-bottom:16px;
+
+}
+
+.bucketPhotoGrid .bucketPhoto{
+
+    margin-bottom:0;
+
+    aspect-ratio:1;
+
+}
+
+.bucketPhotoGrid .bucketPhoto img{
+
+    width:100%;
+
+    height:100%;
+
+    max-height:none;
+
+}
+
+.bucketPhotoCount{
+
+    grid-column:1 / -1;
+
+    font-size:13px;
+
+    color:var(--sub);
+
+    margin-bottom:4px;
+
+}
+
+.photoViewBucket{
+
+    margin-top:8px;
+
+    color:rgba(255,255,255,.75);
+
+    font-size:14px;
+
+}
+
+.photoViewActions{
+
+    display:flex;
+
+    gap:12px;
+
+    justify-content:center;
+
+    margin-top:20px;
+
+}
+
+.photoActionButton{
+
+    min-width:110px;
+
+    height:46px;
+
+    border-radius:16px;
+
+    font-weight:700;
+
+    color:white;
+
+}
+
+.photoActionButton.replace{
+
+    background:var(--orange);
+
+}
+
+.photoActionButton.delete{
+
+    background:var(--red);
+
+}
+
+/* ===================================== */
+/* GALLERY PAGE */
+/* ===================================== */
+
+.galleryHeader{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:flex-end;
+
+    margin-bottom:24px;
+
+}
+
+.galleryHeader h2{
+
+    font-size:32px;
+
+}
+
+.galleryHeader p{
+
+    color:var(--sub);
+
+    font-size:15px;
+
+}
+
+.galleryGrid{
+
+    display:grid;
+
+    grid-template-columns:repeat(2, 1fr);
+
+    gap:14px;
+
+}
+
+.galleryItem{
+
+    position:relative;
+
+    border-radius:22px;
+
+    overflow:hidden;
+
+    background:var(--card);
+
+    box-shadow:var(--shadow);
+
+    cursor:pointer;
+
+    aspect-ratio:1;
+
+}
+
+.galleryItem img{
+
+    width:100%;
+
+    height:100%;
+
+    object-fit:cover;
+
+    display:block;
+
+    transition:.25s;
+
+}
+
+.galleryItem:hover img{
+
+    transform:scale(1.03);
+
+}
+
+.galleryOverlay{
+
+    position:absolute;
+
+    inset:auto 0 0 0;
+
+    padding:14px;
+
+    background:linear-gradient(transparent, rgba(0,0,0,.72));
+
+    color:white;
+
+}
+
+.galleryTitle{
+
+    font-size:14px;
+
+    font-weight:700;
+
+    line-height:1.4;
+
+}
+
+.galleryMeta{
+
+    font-size:12px;
+
+    opacity:.85;
+
+    margin-top:4px;
+
+}
+
+.galleryEmpty{
+
+    grid-column:1 / -1;
+
+    text-align:center;
+
+    padding:48px 24px;
+
+    border-radius:28px;
+
+    background:var(--card);
+
+    color:var(--sub);
+
+    line-height:1.8;
+
+}
+
+.premiumBadge{
+
+    display:inline-block;
+
+    margin-left:6px;
+
+    padding:2px 8px;
+
+    border-radius:999px;
+
+    background:rgba(139,92,246,.15);
+
+    color:var(--purple);
+
+    font-size:11px;
+
+    font-weight:700;
+
+}
+
+#premiumStatus{
+
+    color:var(--sub);
+
+    font-size:14px;
+
+}
+
+#premiumStatus.active{
+
+    color:var(--purple);
+
+    font-weight:700;
+
+}
+
 /* ===================================== */
 /* STATS PAGE */
 /* ===================================== */
@@ -1440,7 +1770,13 @@ body.dark .bottomNav{
 
 .navButton span{
 
-    font-size:24px;
+    font-size:22px;
+
+}
+
+.navButton small{
+
+    font-size:11px;
 
 }
 
@@ -1493,6 +1829,18 @@ body.dark .bottomNav{
 
         width:96px;
         height:96px;
+
+    }
+
+    .galleryGrid{
+
+        grid-template-columns:1fr 1fr;
+
+    }
+
+    .photoPreviewGrid{
+
+        grid-template-columns:repeat(2, 1fr);
 
     }
 

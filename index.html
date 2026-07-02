@@ -280,6 +280,40 @@
 
         <!-- ========================= -->
 
+        <!-- GALLERY -->
+
+        <!-- ========================= -->
+
+        <section
+            id="galleryPage"
+            class="page">
+
+            <div class="galleryHeader">
+
+                <h2>
+
+                    기념 앨범
+
+                </h2>
+
+                <p id="galleryCount">
+
+                    0장
+
+                </p>
+
+            </div>
+
+            <div
+                id="galleryGrid"
+                class="galleryGrid">
+
+            </div>
+
+        </section>
+
+        <!-- ========================= -->
+
         <!-- STATS -->
 
         <!-- ========================= -->
@@ -329,9 +363,19 @@
 
                 <button
                     class="settingItem"
+                    id="togglePremium">
+
+                    <span>✨ 프리미엄 (다중 사진)</span>
+
+                    <span id="premiumStatus">무료</span>
+
+                </button>
+
+                <button
+                    class="settingItem"
                     id="exportButton">
 
-                    <span>📤 백업하기</span>
+                    <span>📤 전체 백업</span>
 
                     <span>›</span>
 
@@ -341,7 +385,7 @@
                     class="settingItem"
                     id="importButton">
 
-                    <span>📥 가져오기</span>
+                    <span>📥 전체 가져오기</span>
 
                     <span>›</span>
 
@@ -350,6 +394,32 @@
                 <input
                     type="file"
                     id="importFile"
+                    accept=".json"
+                    hidden>
+
+                <button
+                    class="settingItem"
+                    id="exportPhotosButton">
+
+                    <span>🖼 사진만 백업</span>
+
+                    <span>›</span>
+
+                </button>
+
+                <button
+                    class="settingItem"
+                    id="importPhotosButton">
+
+                    <span>📥 사진만 가져오기</span>
+
+                    <span>›</span>
+
+                </button>
+
+                <input
+                    type="file"
+                    id="importPhotosFile"
                     accept=".json"
                     hidden>
 
@@ -369,7 +439,7 @@
 
                 <h3>
 
-                    Bucket v0.2
+                    Bucket v0.3
 
                 </h3>
 
@@ -568,11 +638,17 @@
 
             <div class="inputGroup">
 
-                <label>
+                <label id="photoInputLabel">
 
                     기념 사진 (선택)
 
                 </label>
+
+                <p
+                    class="photoLimitHint"
+                    id="photoLimitHint">
+
+                </p>
 
                 <label
                     class="photoUpload"
@@ -605,14 +681,11 @@
 
                 </label>
 
-                <button
-                    type="button"
-                    id="removePhotoButton"
-                    class="removePhotoButton hidden">
+                <div
+                    id="photoPreviewGrid"
+                    class="photoPreviewGrid hidden">
 
-                    사진 제거
-
-                </button>
+                </div>
 
             </div>
 
@@ -664,6 +737,38 @@
 
             <p id="photoViewTitle"></p>
 
+            <p
+                id="photoViewBucket"
+                class="photoViewBucket">
+
+            </p>
+
+            <div class="photoViewActions">
+
+                <button
+                    id="replacePhotoButton"
+                    class="photoActionButton replace">
+
+                    교체
+
+                </button>
+
+                <button
+                    id="deletePhotoButton"
+                    class="photoActionButton delete">
+
+                    삭제
+
+                </button>
+
+            </div>
+
+            <input
+                type="file"
+                id="replacePhotoInput"
+                accept="image/*"
+                hidden>
+
         </div>
 
     </div>
@@ -691,6 +796,16 @@
             <span>🎯</span>
 
             <small>버킷</small>
+
+        </button>
+
+        <button
+            class="navButton"
+            data-page="galleryPage">
+
+            <span>📷</span>
+
+            <small>앨범</small>
 
         </button>
 

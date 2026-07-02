@@ -15,11 +15,12 @@ const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
    5) 발급받은 클라이언트 ID를 아래에 붙여넣기
 ====================================== */
 
-const GOOGLE_CLIENT_ID = "516093946835-qkq6q5tloe2f5p9dmucmafq07nrdbadp.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_FILE_NAME = "bucket_app_backup.json";
 const DRIVE_FILE_ID_KEY = "bucket_drive_file_id";
 const DRIVE_CONNECTED_KEY = "bucket_drive_connected";
+const DRIVE_LAST_SYNC_KEY = "bucket_drive_last_sync";
 const PREMIUM_KEY = "bucket_premium";
 const PHOTO_DB_NAME = "bucket_photos_v2";
 const PHOTO_STORE = "photos";
@@ -138,6 +139,9 @@ document.getElementById("googleDriveButton");
 
 const googleDriveStatus =
 document.getElementById("googleDriveStatus");
+
+const googleDriveTime =
+document.getElementById("googleDriveTime");
 
 const recentBuckets =
 document.getElementById("recentBuckets");
@@ -2434,26 +2438,59 @@ function setDriveConnected(connected){
 
         localStorage.removeItem(DRIVE_FILE_ID_KEY);
 
+        localStorage.removeItem(DRIVE_LAST_SYNC_KEY);
+
     }
 
     updateDriveUI();
 
 }
 
-function updateDriveUI(status){
+function formatSyncTime(ts){
+
+    const d = new Date(ts);
+
+    const mo = d.getMonth() + 1;
+
+    const day = d.getDate();
+
+    const hh = String(d.getHours()).padStart(2, "0");
+
+    const mm = String(d.getMinutes()).padStart(2, "0");
+
+    return `${mo}월 ${day}일 ${hh}:${mm} 저장됨`;
+
+}
+
+function updateDriveUI(syncOverride){
 
     if(!googleDriveStatus) return;
 
-    if(status){
+    googleDriveStatus.textContent =
+    isDriveConnected() ? "연결됨" : "연결하기";
 
-        googleDriveStatus.textContent = status;
+    if(!googleDriveTime) return;
+
+    if(syncOverride !== undefined){
+
+        googleDriveTime.textContent = syncOverride;
 
         return;
 
     }
 
-    googleDriveStatus.textContent =
-    isDriveConnected() ? "연결됨 ✅" : "연결하기";
+    if(!isDriveConnected()){
+
+        googleDriveTime.textContent = "";
+
+        return;
+
+    }
+
+    const last = localStorage.getItem(DRIVE_LAST_SYNC_KEY);
+
+    googleDriveTime.textContent =
+    last ? formatSyncTime(Number(last)) : "동기화 대기 중";
 
 }
 
@@ -2747,13 +2784,11 @@ async function syncToDrive(){
 
         }
 
-        const now = new Date();
+        const now = Date.now();
 
-        const hh = String(now.getHours()).padStart(2, "0");
+        localStorage.setItem(DRIVE_LAST_SYNC_KEY, String(now));
 
-        const mm = String(now.getMinutes()).padStart(2, "0");
-
-        updateDriveUI(`연결됨 ✅ ${hh}:${mm} 저장됨`);
+        updateDriveUI();
 
     }catch{
 

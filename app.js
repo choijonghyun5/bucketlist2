@@ -15,7 +15,7 @@ const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
    5) 발급받은 클라이언트 ID를 아래에 붙여넣기
 ====================================== */
 
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "516093946835-qkq6q5tloe2f5p9dmucmafq07nrdbadp.apps.googleusercontent.com";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_FILE_NAME = "bucket_app_backup.json";
 const DRIVE_FILE_ID_KEY = "bucket_drive_file_id";

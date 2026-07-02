@@ -15,7 +15,7 @@ const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
    5) 발급받은 클라이언트 ID를 아래에 붙여넣기
 ====================================== */
 
-const GOOGLE_CLIENT_ID = "516093946835-qkq6q5tloe2f5p9dmucmafq07nrdbadp.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const DRIVE_FILE_NAME = "bucket_app_backup.json";
 const DRIVE_FILE_ID_KEY = "bucket_drive_file_id";
@@ -270,6 +270,141 @@ function updatePremiumUI(){
         premiumStatus.textContent="무료";
 
         premiumStatus.classList.remove("active");
+
+    }
+
+}
+
+/* ===== 프리미엄 결제 (토스페이먼츠 + Vercel) ===== */
+
+function getPremiumPaidAtText(){
+
+    try{
+
+        const token = localStorage.getItem(PREMIUM_TOKEN_KEY);
+
+        if(!token) return null;
+
+        const [payloadStr] = token.split(".");
+
+        const payload = JSON.parse(atob(payloadStr.replace(/-/g, "+").replace(/_/g, "/")));
+
+        if(!payload.paidAt) return null;
+
+        const d = new Date(payload.paidAt);
+
+        return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+
+    }catch{
+
+        return null;
+
+    }
+
+}
+
+function generateOrderId(){
+
+    return `bucket_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+}
+
+function startPremiumPayment(){
+
+    if(VERCEL_API_BASE.includes("YOUR-VERCEL-PROJECT")){
+
+        alert("결제 서버가 아직 연결되지 않았어요. payment-config.js의 VERCEL_API_BASE / TOSS_CLIENT_KEY를 먼저 설정해주세요.");
+
+        return;
+
+    }
+
+    if(typeof TossPayments !== "function"){
+
+        alert("결제 모듈을 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+
+        return;
+
+    }
+
+    const tossPayments = TossPayments(TOSS_CLIENT_KEY);
+
+    tossPayments.requestPayment("카드", {
+
+        amount: PREMIUM_PRICE,
+        orderId: generateOrderId(),
+        orderName: PREMIUM_ORDER_NAME,
+        successUrl: `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}payment-success.html`,
+        failUrl: `${window.location.origin}${window.location.pathname.replace(/index\.html$/, "")}payment-fail.html`
+
+    }).catch((err) => {
+
+        if(err && err.code === "USER_CANCEL") return;
+
+        alert("결제창을 여는 중 문제가 발생했어요. 잠시 후 다시 시도해주세요.");
+
+    });
+
+}
+
+async function verifyStoredPremiumToken(force){
+
+    const token = localStorage.getItem(PREMIUM_TOKEN_KEY);
+
+    if(!token){
+
+        if(isPremium()){
+
+            localStorage.setItem(PREMIUM_KEY, "false");
+
+            updatePremiumUI();
+
+        }
+
+        return;
+
+    }
+
+    if(VERCEL_API_BASE.includes("YOUR-VERCEL-PROJECT")) return;
+
+    const lastVerified = Number(localStorage.getItem(PREMIUM_LAST_VERIFIED_KEY) || 0);
+
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+
+    if(!force && Date.now() - lastVerified < ONE_DAY) return;
+
+    try{
+
+        const res = await fetch(`${VERCEL_API_BASE}/api/verify-premium`, {
+
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token })
+
+        });
+
+        const data = await res.json();
+
+        localStorage.setItem(
+
+            PREMIUM_KEY,
+            data.valid ? "true" : "false"
+
+        );
+
+        if(!data.valid){
+
+            localStorage.removeItem(PREMIUM_TOKEN_KEY);
+
+        }
+
+        localStorage.setItem(PREMIUM_LAST_VERIFIED_KEY, String(Date.now()));
+
+        updatePremiumUI();
+
+    }catch{
+
+        /* 네트워크 오류시 마지막으로 확인된 상태를 그대로 유지 */
 
     }
 
@@ -1419,20 +1554,25 @@ async function renderGallery(){
 
 togglePremium.onclick=()=>{
 
-    const next=!isPremium();
+    if(isPremium()){
 
-    localStorage.setItem(
-        PREMIUM_KEY,
-        next ? "true" : "false"
-    );
+        const paidAt = getPremiumPaidAtText();
 
-    updatePremiumUI();
+        alert(
 
-    alert(
-        next
-        ? `프리미엄이 활성화되었습니다. 버킷당 최대 ${PREMIUM_PHOTO_LIMIT}장까지 업로드할 수 있습니다.`
-        : "무료 모드로 전환되었습니다. 버킷당 1장만 저장됩니다."
-    );
+            paidAt
+
+            ? `이미 프리미엄 회원입니다. (구매일: ${paidAt})`
+
+            : "이미 프리미엄 회원입니다."
+
+        );
+
+        return;
+
+    }
+
+    startPremiumPayment();
 
 };
 
@@ -1671,6 +1811,26 @@ myQuoteList.addEventListener("click", (e) => {
     showRandomQuote();
 
 });
+
+verifyStoredPremiumToken();
+
+/* ===== PWA 서비스 워커 등록 ===== */
+
+if("serviceWorker" in navigator){
+
+    window.addEventListener("load", () => {
+
+        navigator.serviceWorker
+            .register("./sw.js")
+            .catch(() => {
+
+                /* 서비스 워커 등록 실패시 조용히 무시 (PWA 기능만 비활성화됨) */
+
+            });
+
+    });
+
+}
 
 /* ============================= */
 
@@ -2413,6 +2573,7 @@ function buildBackupPayload(){
         type: "full",
         exportedAt: Date.now(),
         premium: isPremium(),
+        premiumToken: localStorage.getItem(PREMIUM_TOKEN_KEY) || null,
         buckets,
         customQuotes: loadCustomQuotes(),
         photos
@@ -2892,6 +3053,14 @@ importFile.onchange=e=>{
                     );
 
                     updatePremiumUI();
+
+                }
+
+                if(data.premiumToken){
+
+                    localStorage.setItem(PREMIUM_TOKEN_KEY, data.premiumToken);
+
+                    verifyStoredPremiumToken(true);
 
                 }
 

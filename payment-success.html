@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <meta name="robots" content="noindex">
+
+    <title>결제 확인 중...</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="payment-config.js"></script>
+
+</head>
+
+<body>
+
+    <div style="
+        min-height:100vh;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:20px;
+        padding:24px;
+        text-align:center;
+    ">
+
+        <div
+            id="resultIcon"
+            style="font-size:48px;">
+
+            ⏳
+
+        </div>
+
+        <h2 id="resultTitle">
+
+            결제를 확인하고 있어요...
+
+        </h2>
+
+        <p
+            id="resultMessage"
+            style="color:var(--sub); max-width:320px;">
+
+            잠시만 기다려주세요.
+
+        </p>
+
+        <a
+            id="backLink"
+            href="index.html"
+            style="
+                display:none;
+                margin-top:12px;
+                padding:14px 28px;
+                border-radius:20px;
+                background:var(--blue);
+                color:#fff;
+                text-decoration:none;
+                font-weight:600;
+            ">
+
+            앱으로 돌아가기
+
+        </a>
+
+    </div>
+
+    <script>
+
+        const PREMIUM_KEY = "bucket_premium";
+
+        const resultIcon = document.getElementById("resultIcon");
+        const resultTitle = document.getElementById("resultTitle");
+        const resultMessage = document.getElementById("resultMessage");
+        const backLink = document.getElementById("backLink");
+
+        function showResult(icon, title, message, success){
+
+            resultIcon.textContent = icon;
+            resultTitle.textContent = title;
+            resultMessage.textContent = message;
+            backLink.style.display = "inline-block";
+            backLink.textContent = success ? "앱으로 돌아가기" : "설정으로 돌아가기";
+
+        }
+
+        async function confirmPayment(){
+
+            const params = new URLSearchParams(window.location.search);
+
+            const paymentKey = params.get("paymentKey");
+            const orderId = params.get("orderId");
+            const amount = params.get("amount");
+
+            if(!paymentKey || !orderId || !amount){
+
+                showResult("⚠️", "결제 정보가 없습니다", "결제 과정에서 문제가 발생했어요. 다시 시도해주세요.", false);
+
+                return;
+
+            }
+
+            try{
+
+                const res = await fetch(`${VERCEL_API_BASE}/api/confirm-payment`, {
+
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        paymentKey,
+                        orderId,
+                        amount: Number(amount)
+                    })
+
+                });
+
+                const data = await res.json();
+
+                if(!res.ok || !data.success){
+
+                    showResult("❌", "결제 승인 실패", data.error || "결제 승인 중 문제가 발생했어요.", false);
+
+                    return;
+
+                }
+
+                localStorage.setItem(PREMIUM_TOKEN_KEY, data.token);
+                localStorage.setItem(PREMIUM_KEY, "true");
+                localStorage.setItem(PREMIUM_LAST_VERIFIED_KEY, String(Date.now()));
+
+                showResult("🎉", "프리미엄이 활성화되었습니다!", "이제 버킷당 사진을 더 많이 저장할 수 있어요.", true);
+
+            }catch(err){
+
+                showResult("⚠️", "네트워크 오류", "결제 서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.", false);
+
+            }
+
+        }
+
+        confirmPayment();
+
+    </script>
+
+</body>
+
+</html>

@@ -4,6 +4,7 @@
 ======================================================= */
 
 const STORAGE_KEY = "bucket_v02";
+const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
 const PREMIUM_KEY = "bucket_premium";
 const PHOTO_DB_NAME = "bucket_photos_v2";
 const PHOTO_STORE = "photos";
@@ -93,6 +94,24 @@ document.getElementById("todayDate");
 
 const todayQuote =
 document.getElementById("todayQuote");
+
+const addQuoteButton =
+document.getElementById("addQuoteButton");
+
+const quoteModal =
+document.getElementById("quoteModal");
+
+const quoteTextInput =
+document.getElementById("quoteTextInput");
+
+const quoteAddSaveButton =
+document.getElementById("quoteAddSaveButton");
+
+const quoteCloseButton =
+document.getElementById("quoteCloseButton");
+
+const myQuoteList =
+document.getElementById("myQuoteList");
 
 const recentBuckets =
 document.getElementById("recentBuckets");
@@ -1469,12 +1488,157 @@ function todayString(){
 
 todayDate.textContent=todayString();
 
-todayQuote.textContent=
-quotes[
-Math.floor(
-Math.random()*quotes.length
-)
-];
+/* ===== 사용자 정의 오늘의 문구 ===== */
+
+function loadCustomQuotes(){
+
+    try{
+
+        return JSON.parse(
+            localStorage.getItem(CUSTOM_QUOTE_KEY)
+        ) || [];
+
+    }catch{
+
+        return [];
+
+    }
+
+}
+
+function saveCustomQuotes(list){
+
+    localStorage.setItem(
+        CUSTOM_QUOTE_KEY,
+        JSON.stringify(list)
+    );
+
+}
+
+function getAllQuotes(){
+
+    return quotes.concat(loadCustomQuotes());
+
+}
+
+function showRandomQuote(){
+
+    const pool = getAllQuotes();
+
+    todayQuote.textContent =
+    pool[
+        Math.floor(
+            Math.random() * pool.length
+        )
+    ];
+
+}
+
+function renderMyQuoteList(){
+
+    const custom = loadCustomQuotes();
+
+    if(custom.length === 0){
+
+        myQuoteList.innerHTML =
+        `<p class="myQuoteEmpty">아직 추가한 문구가 없습니다.</p>`;
+
+        return;
+
+    }
+
+    myQuoteList.innerHTML = custom.map((q, i) => `
+        <div class="myQuoteItem">
+            <p>${escapeHtml(q)}</p>
+            <button class="myQuoteDelete" data-index="${i}">✕</button>
+        </div>
+    `).join("");
+
+}
+
+function escapeHtml(str){
+
+    const div = document.createElement("div");
+
+    div.textContent = str;
+
+    return div.innerHTML;
+
+}
+
+showRandomQuote();
+
+addQuoteButton.addEventListener("click", () => {
+
+    quoteTextInput.value = "";
+
+    renderMyQuoteList();
+
+    quoteModal.classList.add("show");
+
+});
+
+quoteCloseButton.addEventListener("click", () => {
+
+    quoteModal.classList.remove("show");
+
+});
+
+quoteModal.addEventListener("click", (e) => {
+
+    if(e.target === quoteModal){
+
+        quoteModal.classList.remove("show");
+
+    }
+
+});
+
+quoteAddSaveButton.addEventListener("click", () => {
+
+    const text = quoteTextInput.value.trim();
+
+    if(!text){
+
+        alert("문구를 입력해주세요.");
+
+        return;
+
+    }
+
+    const custom = loadCustomQuotes();
+
+    custom.push(text);
+
+    saveCustomQuotes(custom);
+
+    quoteTextInput.value = "";
+
+    renderMyQuoteList();
+
+    showRandomQuote();
+
+});
+
+myQuoteList.addEventListener("click", (e) => {
+
+    const btn = e.target.closest(".myQuoteDelete");
+
+    if(!btn) return;
+
+    const index = Number(btn.dataset.index);
+
+    const custom = loadCustomQuotes();
+
+    custom.splice(index, 1);
+
+    saveCustomQuotes(custom);
+
+    renderMyQuoteList();
+
+    showRandomQuote();
+
+});
 
 /* ============================= */
 

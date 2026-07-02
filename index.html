@@ -155,11 +155,24 @@
 
             <section class="quoteCard">
 
-                <h3>
+                <div class="quoteCardHeader">
 
-                    오늘의 문구
+                    <h3>
 
-                </h3>
+                        오늘의 문구
+
+                    </h3>
+
+                    <button
+                        id="addQuoteButton"
+                        class="quoteAddButton"
+                        title="나만의 문구 추가">
+
+                        +
+
+                    </button>
+
+                </div>
 
                 <p id="todayQuote">
 
@@ -601,6 +614,71 @@
                     취소
 
                 </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- QUOTE MODAL -->
+    <!-- ========================= -->
+
+    <div
+        class="modal"
+        id="quoteModal">
+
+        <div class="modalSheet">
+
+            <div class="sheetHeader">
+
+                <h2>
+
+                    나만의 문구
+
+                </h2>
+
+            </div>
+
+            <div class="inputGroup">
+
+                <label>
+
+                    새 문구 입력
+
+                </label>
+
+                <textarea
+                    id="quoteTextInput"
+                    rows="3"
+                    placeholder="예) 나만의 응원 문구를 적어보세요."></textarea>
+
+            </div>
+
+            <div class="modalButtons">
+
+                <button
+                    id="quoteAddSaveButton"
+                    class="primaryButton">
+
+                    추가
+
+                </button>
+
+                <button
+                    id="quoteCloseButton"
+                    class="secondaryButton">
+
+                    닫기
+
+                </button>
+
+            </div>
+
+            <div
+                id="myQuoteList"
+                class="myQuoteList">
 
             </div>
 

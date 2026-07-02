@@ -19,6 +19,12 @@
         rel="stylesheet"
         href="style.css">
 
+    <script
+        src="https://accounts.google.com/gsi/client"
+        async
+        defer
+        onload="if(window.onGisLoad){window.onGisLoad();}"></script>
+
 </head>
 
 <body>
@@ -79,7 +85,7 @@
 
                     오늘도<br>
 
-                    꿈을 이루어보세요.
+                    하나의 꿈을 이루어보세요.
 
                 </h1>
 
@@ -371,6 +377,16 @@
                     <span>🌙 다크모드</span>
 
                     <span>›</span>
+
+                </button>
+
+                <button
+                    class="settingItem"
+                    id="googleDriveButton">
+
+                    <span>☁️ 구글 드라이브 자동 저장</span>
+
+                    <span id="googleDriveStatus">연결하기</span>
 
                 </button>
 

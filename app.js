@@ -5,6 +5,21 @@
 
 const STORAGE_KEY = "bucket_v02";
 const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
+
+/* ===== Google Drive 자동 저장 설정 =====
+   1) https://console.cloud.google.com 에서 프로젝트 생성
+   2) API 및 서비스 > 라이브러리 > "Google Drive API" 사용 설정
+   3) API 및 서비스 > 사용자 인증 정보 > OAuth 클라이언트 ID 만들기 (웹 애플리케이션)
+   4) "승인된 자바스크립트 원본"에 이 앱이 열리는 주소를 추가
+      예) http://localhost:5500 또는 https://내계정.github.io
+   5) 발급받은 클라이언트 ID를 아래에 붙여넣기
+====================================== */
+
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_FILE_NAME = "bucket_app_backup.json";
+const DRIVE_FILE_ID_KEY = "bucket_drive_file_id";
+const DRIVE_CONNECTED_KEY = "bucket_drive_connected";
 const PREMIUM_KEY = "bucket_premium";
 const PHOTO_DB_NAME = "bucket_photos_v2";
 const PHOTO_STORE = "photos";
@@ -22,6 +37,11 @@ let completingBucketId = null;
 let pendingPhotos = [];
 let viewingPhotoId = null;
 let celebrateMode = "complete";
+
+let googleAccessToken = null;
+let googleTokenClient = null;
+let driveSyncTimer = null;
+let driveSyncInProgress = false;
 
 const quotes = [
     "오늘의 작은 한 걸음이 내일의 큰 변화를 만듭니다.",
@@ -112,6 +132,12 @@ document.getElementById("quoteCloseButton");
 
 const myQuoteList =
 document.getElementById("myQuoteList");
+
+const googleDriveButton =
+document.getElementById("googleDriveButton");
+
+const googleDriveStatus =
+document.getElementById("googleDriveStatus");
 
 const recentBuckets =
 document.getElementById("recentBuckets");
@@ -1513,6 +1539,8 @@ function saveCustomQuotes(list){
         JSON.stringify(list)
     );
 
+    scheduleDriveSync();
+
 }
 
 function getAllQuotes(){
@@ -1648,6 +1676,8 @@ function saveStorage(){
         STORAGE_KEY,
         JSON.stringify(buckets)
     );
+
+    scheduleDriveSync();
 
 }
 
@@ -2367,6 +2397,377 @@ themeButton.onclick=()=>{
     }
 
 };
+
+/* ============================= */
+/* 구글 드라이브 자동 저장 */
+/* ============================= */
+
+function buildBackupPayload(){
+
+    return buildPhotosExport().then(photos => ({
+        version: BACKUP_VERSION,
+        type: "full",
+        exportedAt: Date.now(),
+        premium: isPremium(),
+        buckets,
+        customQuotes: loadCustomQuotes(),
+        photos
+    }));
+
+}
+
+function isDriveConnected(){
+
+    return localStorage.getItem(DRIVE_CONNECTED_KEY) === "1";
+
+}
+
+function setDriveConnected(connected){
+
+    if(connected){
+
+        localStorage.setItem(DRIVE_CONNECTED_KEY, "1");
+
+    }else{
+
+        localStorage.removeItem(DRIVE_CONNECTED_KEY);
+
+        localStorage.removeItem(DRIVE_FILE_ID_KEY);
+
+    }
+
+    updateDriveUI();
+
+}
+
+function updateDriveUI(status){
+
+    if(!googleDriveStatus) return;
+
+    if(status){
+
+        googleDriveStatus.textContent = status;
+
+        return;
+
+    }
+
+    googleDriveStatus.textContent =
+    isDriveConnected() ? "연결됨 ✅" : "연결하기";
+
+}
+
+function initGoogleAuth(){
+
+    if(!window.google || !google.accounts || !google.accounts.oauth2){
+
+        return;
+
+    }
+
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+
+        client_id: GOOGLE_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+
+        callback: (response) => {
+
+            if(response && response.access_token){
+
+                googleAccessToken = response.access_token;
+
+                setDriveConnected(true);
+
+                syncToDrive();
+
+            }else{
+
+                updateDriveUI();
+
+            }
+
+        }
+
+    });
+
+    if(isDriveConnected()){
+
+        try{
+
+            googleTokenClient.requestAccessToken({ prompt: "" });
+
+        }catch{
+
+            /* 자동 로그인 실패시 조용히 무시 */
+
+        }
+
+    }
+
+}
+
+window.onGisLoad = initGoogleAuth;
+
+if(window.google && google.accounts && google.accounts.oauth2){
+
+    initGoogleAuth();
+
+}
+
+function connectGoogleDrive(){
+
+    if(GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")){
+
+        alert("구글 드라이브 기능을 쓰려면 app.js의 GOOGLE_CLIENT_ID를 먼저 설정해야 합니다.");
+
+        return;
+
+    }
+
+    if(!googleTokenClient){
+
+        alert("구글 로그인 준비 중입니다. 잠시 후 다시 시도해주세요.");
+
+        return;
+
+    }
+
+    googleTokenClient.requestAccessToken({ prompt: "consent" });
+
+}
+
+function disconnectGoogleDrive(){
+
+    if(googleAccessToken && window.google && google.accounts){
+
+        google.accounts.oauth2.revoke(googleAccessToken, () => {});
+
+    }
+
+    googleAccessToken = null;
+
+    setDriveConnected(false);
+
+}
+
+googleDriveButton.onclick = () => {
+
+    if(isDriveConnected()){
+
+        if(confirm("구글 드라이브 자동 저장을 해제할까요?")){
+
+            disconnectGoogleDrive();
+
+        }
+
+    }else{
+
+        connectGoogleDrive();
+
+    }
+
+};
+
+function scheduleDriveSync(){
+
+    if(!isDriveConnected()) return;
+
+    clearTimeout(driveSyncTimer);
+
+    driveSyncTimer = setTimeout(syncToDrive, 2000);
+
+}
+
+async function ensureAccessToken(){
+
+    if(googleAccessToken) return googleAccessToken;
+
+    if(!googleTokenClient) return null;
+
+    return new Promise((resolve) => {
+
+        const originalCallback = googleTokenClient.callback;
+
+        googleTokenClient.callback = (response) => {
+
+            googleTokenClient.callback = originalCallback;
+
+            if(response && response.access_token){
+
+                googleAccessToken = response.access_token;
+
+                resolve(response.access_token);
+
+            }else{
+
+                resolve(null);
+
+            }
+
+        };
+
+        googleTokenClient.requestAccessToken({ prompt: "" });
+
+    });
+
+}
+
+async function findDriveFileId(token){
+
+    const cached = localStorage.getItem(DRIVE_FILE_ID_KEY);
+
+    if(cached) return cached;
+
+    const query =
+    encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+
+    const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name)`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if(!res.ok) return null;
+
+    const data = await res.json();
+
+    if(data.files && data.files.length > 0){
+
+        localStorage.setItem(DRIVE_FILE_ID_KEY, data.files[0].id);
+
+        return data.files[0].id;
+
+    }
+
+    return null;
+
+}
+
+async function uploadNewDriveFile(token, payload){
+
+    const boundary = "bucket_backup_boundary";
+
+    const metadata = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
+
+    const body =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: application/json\r\n\r\n` +
+    `${JSON.stringify(payload)}\r\n` +
+    `--${boundary}--`;
+
+    const res = await fetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": `multipart/related; boundary=${boundary}`
+            },
+            body
+        }
+    );
+
+    if(!res.ok) throw new Error("업로드 실패");
+
+    const data = await res.json();
+
+    localStorage.setItem(DRIVE_FILE_ID_KEY, data.id);
+
+}
+
+async function updateDriveFile(token, fileId, payload){
+
+    const res = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+        {
+            method: "PATCH",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        }
+    );
+
+    if(res.status === 404){
+
+        localStorage.removeItem(DRIVE_FILE_ID_KEY);
+
+        throw new Error("파일 없음");
+
+    }
+
+    if(!res.ok) throw new Error("업데이트 실패");
+
+}
+
+async function syncToDrive(){
+
+    if(!isDriveConnected() || driveSyncInProgress) return;
+
+    driveSyncInProgress = true;
+
+    updateDriveUI("저장 중...");
+
+    try{
+
+        const token = await ensureAccessToken();
+
+        if(!token){
+
+            updateDriveUI("로그인 필요");
+
+            driveSyncInProgress = false;
+
+            return;
+
+        }
+
+        const payload = await buildBackupPayload();
+
+        let fileId = await findDriveFileId(token);
+
+        if(fileId){
+
+            try{
+
+                await updateDriveFile(token, fileId, payload);
+
+            }catch{
+
+                await uploadNewDriveFile(token, payload);
+
+            }
+
+        }else{
+
+            await uploadNewDriveFile(token, payload);
+
+        }
+
+        const now = new Date();
+
+        const hh = String(now.getHours()).padStart(2, "0");
+
+        const mm = String(now.getMinutes()).padStart(2, "0");
+
+        updateDriveUI(`연결됨 ✅ ${hh}:${mm} 저장됨`);
+
+    }catch{
+
+        updateDriveUI("저장 실패, 재시도 예정");
+
+    }finally{
+
+        driveSyncInProgress = false;
+
+    }
+
+}
+
+updateDriveUI();
 
 /* ============================= */
 /* JSON 백업 */

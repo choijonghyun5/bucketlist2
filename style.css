@@ -241,7 +241,6 @@ body.apple .searchArea input{
 
 body.apple .primaryButton,
 body.apple .quoteAddButton,
-body.apple .category.active,
 body.apple .fab{
 
     background:var(--metal-blue);
@@ -260,6 +259,29 @@ body.apple .fab{
     0 12px 26px rgba(0,0,0,.4),
     inset 0 1px 0 rgba(255,255,255,.5),
     inset 0 -6px 10px rgba(0,0,0,.25);
+
+}
+
+body.apple .category.active{
+
+    background:var(--metal-blue);
+
+    background-size:100% 100%;
+
+    background-repeat:no-repeat;
+
+    background-clip:border-box;
+
+    color:#EEF2F5;
+
+    border:1px solid rgba(255,255,255,.25);
+
+    text-shadow:0 1px 1px rgba(0,0,0,.35);
+
+    box-shadow:
+    0 10px 20px rgba(0,0,0,.35),
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -4px 8px rgba(0,0,0,.22);
 
 }
 
@@ -321,6 +343,219 @@ body.apple .logo span{
     background-clip:text;
 
     color:transparent;
+
+}
+
+/* ----- 메탈 완료 / 수정 / 삭제 버튼 (무채색) ----- */
+
+body.apple{
+
+    --metal-silver:
+    linear-gradient(
+    135deg,
+    #F4F5F6 0%,
+    #DBDEE1 20%,
+    #AFB4B9 46%,
+    #71767C 72%,
+    #34363A 100%
+    );
+
+    --metal-graphite:
+    linear-gradient(
+    135deg,
+    #E3E5E7 0%,
+    #C0C4C8 20%,
+    #888D92 46%,
+    #4E5257 72%,
+    #202224 100%
+    );
+
+    --metal-charcoal:
+    linear-gradient(
+    135deg,
+    #D2D4D6 0%,
+    #A4A8AC 20%,
+    #666A6E 46%,
+    #363839 72%,
+    #131415 100%
+    );
+
+}
+
+body.apple .bucketButtons button{
+
+    background-size:100% 220%;
+
+    background-position:0 15%;
+
+    border:1px solid rgba(255,255,255,.25);
+
+    text-shadow:0 1px 1px rgba(0,0,0,.35);
+
+    box-shadow:
+    0 10px 22px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.5),
+    inset 0 -6px 10px rgba(0,0,0,.25);
+
+}
+
+body.apple .completeButton{
+
+    background:var(--metal-silver);
+
+    color:#1C1D1F;
+
+    text-shadow:0 1px 0 rgba(255,255,255,.4);
+
+}
+
+body.apple .editButton{
+
+    background:var(--metal-graphite);
+
+}
+
+body.apple .deleteButton{
+
+    background:var(--metal-charcoal);
+
+}
+
+/* ----- 메탈 다크모드 끔 (조금 더 밝은 브러시드 알루미늄) ----- */
+
+body.apple.metalLight{
+
+    --background:#E7E9EC;
+    --card:rgba(255,255,255,.55);
+
+    --surface:#F3F4F6;
+    --surface-alt:#E9EAEC;
+    --secondary-btn:#DCDEE1;
+
+    --nav-bg:rgba(255,255,255,.8);
+    --header-bg:rgba(255,255,255,.72);
+    --header-border:rgba(0,0,0,.06);
+
+    --text:#1C1D1F;
+    --sub:#6A6D72;
+
+    --shadow:
+    0 20px 45px rgba(0,0,0,.1);
+
+    --border:rgba(0,0,0,.06);
+
+    --track-bg:#D6D8DB;
+
+    --body-bg:
+    radial-gradient(
+    circle at 18% -10%,
+    #ffffff,
+    transparent 55%
+    ),
+    radial-gradient(
+    circle at 90% 110%,
+    #eef0f2,
+    transparent 55%
+    ),
+    repeating-linear-gradient(
+    100deg,
+    rgba(255,255,255,.5) 0px,
+    rgba(255,255,255,.5) 1px,
+    transparent 1px,
+    transparent 3px
+    ),
+    linear-gradient(
+    165deg,
+    #f4f5f6,
+    #e3e5e7 60%,
+    #d6d8db
+    );
+
+}
+
+body.apple.metalLight .heroCard,
+body.apple.metalLight .quoteCard,
+body.apple.metalLight .recentCard,
+body.apple.metalLight .bucketCard,
+body.apple.metalLight .statsCard,
+body.apple.metalLight .settingItem,
+body.apple.metalLight .modalSheet{
+
+    border:1px solid rgba(0,0,0,.05);
+
+    background-image:
+    linear-gradient(
+    155deg,
+    rgba(255,255,255,.6),
+    rgba(255,255,255,.15) 40%,
+    rgba(0,0,0,.02)
+    );
+
+}
+
+body.apple.metalLight .header,
+body.apple.metalLight .bottomNav,
+body.apple.metalLight .headerButtons button,
+body.apple.metalLight .statCard,
+body.apple.metalLight .recentItem,
+body.apple.metalLight .tag,
+body.apple.metalLight .category,
+body.apple.metalLight #sortButton,
+body.apple.metalLight .searchArea input{
+
+    border:1px solid rgba(0,0,0,.05);
+
+    background-image:
+    linear-gradient(
+    160deg,
+    rgba(255,255,255,.5),
+    rgba(255,255,255,0) 50%
+    );
+
+}
+
+body.apple.metalLight .navButton.active{
+
+    color:#3A4A57;
+
+    text-shadow:none;
+
+}
+
+body.apple.metalLight .chartBar{
+
+    background:#D6D8DB;
+
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.15);
+
+}
+
+body.apple.metalLight .category{
+
+    box-shadow:0 4px 10px rgba(0,0,0,.06);
+
+}
+
+body.apple.metalLight .category.active{
+
+    background:
+    linear-gradient(
+    135deg,
+    #EEF0F2 0%,
+    #CDD1D5 35%,
+    #9BA0A5 70%,
+    #6E7276 100%
+    );
+
+    color:#1C1D1F;
+
+    text-shadow:none;
+
+    border:1px solid rgba(0,0,0,.08);
+
+    box-shadow:
+    0 6px 14px rgba(0,0,0,.14),
+    inset 0 1px 0 rgba(255,255,255,.55);
 
 }
 
@@ -1224,6 +1459,124 @@ main{
 
 }
 
+/* ===================================== */
+/* WELCOME / INSTALL GUIDE                */
+/* ===================================== */
+
+.welcomeHeader{
+
+    text-align:center;
+
+}
+
+.welcomeEmoji{
+
+    font-size:44px;
+
+    margin-bottom:8px;
+
+}
+
+.welcomeSub{
+
+    color:var(--sub);
+
+    margin-top:8px;
+
+    line-height:1.6;
+
+}
+
+.installGuide{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:14px;
+
+    margin-bottom:24px;
+
+}
+
+.installStep{
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:14px;
+
+    padding:16px;
+
+    border-radius:20px;
+
+    background:var(--surface-alt);
+
+}
+
+.installStepNum{
+
+    flex-shrink:0;
+
+    width:28px;
+
+    height:28px;
+
+    border-radius:50%;
+
+    background:var(--blue);
+
+    color:white;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+}
+
+.installStepText strong{
+
+    display:block;
+
+    margin-bottom:4px;
+
+    font-size:15px;
+
+}
+
+.installStepText p{
+
+    color:var(--sub);
+
+    font-size:13px;
+
+    line-height:1.6;
+
+}
+
+.installIcon{
+
+    font-weight:700;
+
+}
+
+body.apple .installStepNum{
+
+    background:var(--metal-blue);
+
+    color:#EEF2F5;
+
+    text-shadow:0 1px 1px rgba(0,0,0,.35);
+
+}
+
 .photoUpload{
 
     display:block;
@@ -1820,6 +2173,8 @@ main{
 
     box-shadow:var(--shadow);
 
+    color:var(--text);
+
     transition:.25s;
 
 }
@@ -1916,6 +2271,12 @@ main{
 
     border-radius:50%;
 
+    background-size:100% 100%;
+
+    background-repeat:no-repeat;
+
+    background-clip:border-box;
+
     box-shadow:0 4px 10px rgba(0,0,0,.12);
 
     border:1px solid rgba(0,0,0,.06);
@@ -1947,6 +2308,70 @@ main{
 
     background:
     linear-gradient(135deg,rgba(255,120,180,.8),rgba(120,170,255,.8) 55%,rgba(255,255,255,.9));
+}
+
+.metalDarkSettingItem{
+
+    display:none;
+
+}
+
+.metalDarkSettingItem.show{
+
+    display:flex;
+
+}
+
+.switchToggle{
+
+    position:relative;
+
+    width:52px;
+
+    height:32px;
+
+    border-radius:999px;
+
+    background:var(--track-bg);
+
+    transition:.25s;
+
+    flex-shrink:0;
+
+}
+
+.switchToggle .switchKnob{
+
+    position:absolute;
+
+    top:3px;
+
+    left:3px;
+
+    width:26px;
+
+    height:26px;
+
+    border-radius:50%;
+
+    background:#FFFFFF;
+
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+
+    transition:.25s;
+
+}
+
+.switchToggle.on{
+
+    background:var(--green);
+
+}
+
+.switchToggle.on .switchKnob{
+
+    transform:translateX(20px);
+
 }
 
 .driveStatusWrap{
@@ -2245,7 +2670,7 @@ main{
 
     align-items:center;
 
-    gap:3px;
+    gap:4px;
 
     color:var(--sub);
 
@@ -2253,9 +2678,37 @@ main{
 
 }
 
-.navButton span{
+.navButton .navIcon{
 
-    font-size:22px;
+    width:24px;
+
+    height:24px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+}
+
+.navButton .navIcon svg{
+
+    width:100%;
+
+    height:100%;
+
+    stroke:currentColor;
+
+    fill:none;
+
+    stroke-width:1.8;
+
+    stroke-linecap:round;
+
+    stroke-linejoin:round;
+
+    transition:.25s;
 
 }
 
@@ -2270,6 +2723,18 @@ main{
     color:var(--blue);
 
     transform:translateY(-2px);
+
+}
+
+.navButton.active .navIcon svg{
+
+    stroke-width:2.1;
+
+}
+
+body.apple .navButton.active .navIcon svg{
+
+    filter:drop-shadow(0 0 6px rgba(143,166,184,.6));
 
 }
 

@@ -150,6 +150,12 @@ document.getElementById("themeButton");
 const themeOptionButtons =
 document.querySelectorAll(".themeOption");
 
+const metalDarkSettingItem =
+document.getElementById("metalDarkSettingItem");
+
+const metalDarkToggle =
+document.getElementById("metalDarkToggle");
+
 const exportButton =
 document.getElementById("exportButton");
 
@@ -164,6 +170,12 @@ document.getElementById("deleteAllButton");
 
 const celebrateModal =
 document.getElementById("celebrateModal");
+
+const welcomeModal =
+document.getElementById("welcomeModal");
+
+const welcomeCloseButton =
+document.getElementById("welcomeCloseButton");
 
 const celebrateTitle =
 document.getElementById("celebrateTitle");
@@ -2238,6 +2250,73 @@ document
 };
 
 /* ============================= */
+/* 최초 방문 안내 (홈 화면에 추가) */
+/* ============================= */
+
+const WELCOME_KEY = "bucket_welcome_shown";
+
+function isStandaloneApp(){
+
+    return (
+        window.navigator.standalone === true ||
+        (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+    );
+
+}
+
+function isIOSDevice(){
+
+    const ua = navigator.userAgent || "";
+
+    const isIOSUA = /iPad|iPhone|iPod/.test(ua);
+
+    const isIPadOS =
+        navigator.platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1;
+
+    return isIOSUA || isIPadOS;
+
+}
+
+function maybeShowWelcomeGuide(){
+
+    if(!welcomeModal) return;
+
+    if(localStorage.getItem(WELCOME_KEY)) return;
+
+    if(isStandaloneApp()){
+
+        localStorage.setItem(WELCOME_KEY, "true");
+
+        return;
+
+    }
+
+    if(!isIOSDevice()) return;
+
+    welcomeModal.classList.add("show");
+
+}
+
+function closeWelcomeGuide(){
+
+    if(welcomeModal){
+
+        welcomeModal.classList.remove("show");
+
+    }
+
+    localStorage.setItem(WELCOME_KEY, "true");
+
+}
+
+if(welcomeCloseButton){
+
+    welcomeCloseButton.onclick = closeWelcomeGuide;
+
+}
+
+/* ============================= */
 /* 테마 (기본 / 다크 / 애플 / 글래스) */
 /* ============================= */
 
@@ -2270,6 +2349,32 @@ function getStoredTheme(){
     }
 
     return saved;
+
+}
+
+const METAL_DARK_KEY = "bucket_metal_dark";
+
+function getMetalDark(){
+
+    const saved = localStorage.getItem(METAL_DARK_KEY);
+
+    return saved === null ? true : saved === "true";
+
+}
+
+function setMetalDark(on){
+
+    localStorage.setItem(METAL_DARK_KEY, on);
+
+    document.body.classList.toggle("metalLight", !on);
+
+    if(metalDarkToggle){
+
+        metalDarkToggle.classList.toggle("on", on);
+
+        metalDarkToggle.setAttribute("aria-checked", on);
+
+    }
 
 }
 
@@ -2310,11 +2415,37 @@ function setTheme(mode){
 
     });
 
+    if(metalDarkSettingItem){
+
+        metalDarkSettingItem.classList.toggle("show", mode === "apple");
+
+    }
+
+    if(mode === "apple"){
+
+        setMetalDark(getMetalDark());
+
+    } else {
+
+        document.body.classList.remove("metalLight");
+
+    }
+
 }
 
 function applyTheme(){
 
     setTheme(getStoredTheme());
+
+}
+
+if(metalDarkToggle){
+
+    metalDarkToggle.onclick = () => {
+
+        setMetalDark(!getMetalDark());
+
+    };
 
 }
 
@@ -3041,6 +3172,16 @@ async function init(){
     }
 
     render();
+
+    try{
+
+        maybeShowWelcomeGuide();
+
+    }catch(err){
+
+        console.error("설치 안내 표시 중 오류:", err);
+
+    }
 
 }
 

@@ -12,7 +12,7 @@
     <meta
         name="theme-color"
         content="#F5F7FB">
-    <link rel="manifest" href="manifest.json">
+
     <title>Bucket</title>
 
     <link
@@ -85,7 +85,7 @@
 
                     오늘도<br>
 
-                    꿈을 이루어보세요.
+                    하나의 꿈을 이루어보세요.
 
                 </h1>
 
@@ -397,6 +397,24 @@
                         </button>
 
                     </div>
+
+                </div>
+
+                <div
+                    class="settingItem metalDarkSettingItem"
+                    id="metalDarkSettingItem">
+
+                    <span>🌗 메탈 다크 모드</span>
+
+                    <button
+                        class="switchToggle"
+                        id="metalDarkToggle"
+                        role="switch"
+                        aria-checked="true">
+
+                        <span class="switchKnob"></span>
+
+                    </button>
 
                 </div>
 
@@ -884,6 +902,94 @@
     </div>
 
     <!-- ========================= -->
+    <!-- WELCOME / INSTALL GUIDE MODAL -->
+    <!-- ========================= -->
+
+    <div
+        class="modal"
+        id="welcomeModal">
+
+        <div class="modalSheet">
+
+            <div class="sheetHeader welcomeHeader">
+
+                <div class="welcomeEmoji">✨</div>
+
+                <h2>
+                    버킷에 오신 걸 환영해요
+                </h2>
+
+                <p class="welcomeSub">
+                    홈 화면에 추가하면 앱처럼 더 편하게 쓸 수 있어요.
+                </p>
+
+            </div>
+
+            <div class="installGuide">
+
+                <div class="installStep">
+
+                    <span class="installStepNum">1</span>
+
+                    <div class="installStepText">
+                        <strong>Safari에서 열기</strong>
+                        <p>다른 앱 안에서 열었다면 우측 상단 메뉴에서 Safari로 열어주세요.</p>
+                    </div>
+
+                </div>
+
+                <div class="installStep">
+
+                    <span class="installStepNum">2</span>
+
+                    <div class="installStepText">
+                        <strong>공유 버튼 탭하기</strong>
+                        <p>화면 하단의 <span class="installIcon">⎋</span> 공유 아이콘을 눌러주세요.</p>
+                    </div>
+
+                </div>
+
+                <div class="installStep">
+
+                    <span class="installStepNum">3</span>
+
+                    <div class="installStepText">
+                        <strong>더보기 선택</strong>
+                        <p>목록을 아래로 내려 "더보기"를 눌러주세요.</p>
+                    </div>
+
+                </div>
+
+                <div class="installStep">
+
+                    <span class="installStepNum">4</span>
+
+                    <div class="installStepText">
+                        <strong>홈 화면에 추가</strong>
+                        <p>"홈 화면에 추가"를 선택하면 아이콘이 생성돼요.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="modalButtons">
+
+                <button
+                    id="welcomeCloseButton"
+                    class="primaryButton">
+
+                    확인했어요
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ========================= -->
     <!-- BOTTOM NAVIGATION -->
     <!-- ========================= -->
 
@@ -893,7 +999,12 @@
             class="navButton active"
             data-page="homePage">
 
-            <span>🏠</span>
+            <span class="navIcon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 11.5 12 4l8 7.5" />
+                    <path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9" />
+                </svg>
+            </span>
 
             <small>홈</small>
 
@@ -903,7 +1014,13 @@
             class="navButton"
             data-page="bucketPage">
 
-            <span>🎯</span>
+            <span class="navIcon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <circle cx="12" cy="12" r="4.5" />
+                    <circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none" />
+                </svg>
+            </span>
 
             <small>버킷</small>
 
@@ -913,7 +1030,13 @@
             class="navButton"
             data-page="galleryPage">
 
-            <span>📷</span>
+            <span class="navIcon">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3.5" y="6" width="17" height="14" rx="2.5" />
+                    <path d="M8 6l1.6-2.4A1 1 0 0 1 10.5 3h3a1 1 0 0 1 .9.6L16 6" />
+                    <circle cx="12" cy="13" r="3.4" />
+                </svg>
+            </span>
 
             <small>앨범</small>
 
@@ -923,7 +1046,14 @@
             class="navButton"
             data-page="statsPage">
 
-            <span>📊</span>
+            <span class="navIcon">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 20V10" />
+                    <path d="M10 20V4" />
+                    <path d="M16 20v-7" />
+                    <path d="M2.5 20.5h19" />
+                </svg>
+            </span>
 
             <small>통계</small>
 
@@ -933,7 +1063,12 @@
             class="navButton"
             data-page="settingsPage">
 
-            <span>⚙️</span>
+            <span class="navIcon">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+            </span>
 
             <small>설정</small>
 

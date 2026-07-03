@@ -649,6 +649,12 @@ body.glass .galleryEmpty{
 
 }
 
+body.glass .progressCircle::after{
+
+    background:#FFFFFF;
+
+}
+
 body.glass .fab{
 
     background:

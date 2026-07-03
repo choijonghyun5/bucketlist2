@@ -1373,6 +1373,8 @@ importPhotosFile.onchange=e=>{
 
             renderGallery();
 
+            await syncToDriveNow();
+
             alert(`사진 ${photos.length}장 가져오기 완료`);
 
         }catch{
@@ -2739,6 +2741,19 @@ function scheduleDriveSync(){
 
 }
 
+/* 가져오기(import)처럼 그 직후 앱이 바로 닫힐 수 있는 경우를 위한
+   즉시 동기화 함수. 2초 디바운스를 기다리지 않고 바로 업로드하고,
+   완료(또는 실패)될 때까지 await로 기다린다. */
+async function syncToDriveNow(){
+
+    if(!isDriveConnected()) return;
+
+    clearTimeout(driveSyncTimer);
+
+    await syncToDrive();
+
+}
+
 async function ensureAccessToken(){
 
     if(googleAccessToken) return googleAccessToken;
@@ -2984,6 +2999,8 @@ importFile.onchange=e=>{
 
                 render();
 
+                await syncToDriveNow();
+
                 alert("가져오기 완료");
 
                 importFile.value="";
@@ -3012,6 +3029,8 @@ importFile.onchange=e=>{
                 render();
 
                 renderGallery();
+
+                await syncToDriveNow();
 
                 alert("전체 백업 가져오기 완료");
 

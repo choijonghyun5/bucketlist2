@@ -2345,6 +2345,11 @@ function maybeShowWelcomeGuide(){
 
     welcomeModal.classList.add("show");
 
+    showToast(
+        "구글 드라이브에 자동으로 백업됩니다. 설정에서 연결하면 목표와 사진이 안전하게 저장돼요.",
+        { icon: "☁️" }
+    );
+
 }
 
 function closeWelcomeGuide(){

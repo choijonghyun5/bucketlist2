@@ -1567,6 +1567,48 @@ main{
 
 }
 
+.welcomeDriveNote{
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:10px;
+
+    margin-top:18px;
+
+    padding:14px 16px;
+
+    border-radius:16px;
+
+    background:var(--surface-alt);
+
+    color:var(--sub);
+
+    font-size:13px;
+
+    line-height:1.5;
+
+}
+
+.welcomeDriveIcon{
+
+    font-size:16px;
+
+    flex-shrink:0;
+
+    line-height:1.4;
+
+}
+
+body.apple .welcomeDriveNote{
+
+    background:rgba(255,255,255,.06);
+
+    border:1px solid rgba(255,255,255,.08);
+
+}
+
 body.apple .installStepNum{
 
     background:var(--metal-blue);

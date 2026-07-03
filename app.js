@@ -169,8 +169,6 @@ document.getElementById("importButton");
 const importFile =
 document.getElementById("importFile");
 
-const deleteAllButton =
-document.getElementById("deleteAllButton");
 
 const celebrateModal =
 document.getElementById("celebrateModal");
@@ -238,14 +236,6 @@ document.getElementById("galleryGrid");
 const galleryCount =
 document.getElementById("galleryCount");
 
-const exportPhotosButton =
-document.getElementById("exportPhotosButton");
-
-const importPhotosButton =
-document.getElementById("importPhotosButton");
-
-const importPhotosFile =
-document.getElementById("importPhotosFile");
 
 /* ============================= */
 
@@ -1321,75 +1311,6 @@ async function renderGallery(){
 
 }
 
-exportPhotosButton.onclick=async()=>{
-
-    const photos=await buildPhotosExport();
-
-    downloadJson({
-        version:BACKUP_VERSION,
-        type:"photos",
-        exportedAt:Date.now(),
-        photos
-    }, "bucket-photos-backup.json");
-
-};
-
-importPhotosButton.onclick=()=>{
-
-    importPhotosFile.click();
-
-};
-
-importPhotosFile.onchange=e=>{
-
-    const file=e.target.files[0];
-
-    if(!file) return;
-
-    const reader=new FileReader();
-
-    reader.onload=async()=>{
-
-        try{
-
-            const data=JSON.parse(reader.result);
-
-            const photos=
-            data.type==="photos"
-            ? data.photos
-            : data.photos || [];
-
-            if(!Array.isArray(photos) || photos.length===0){
-
-                alert("가져올 사진이 없습니다.");
-
-                return;
-
-            }
-
-            await restorePhotosExport(photos, false);
-
-            render();
-
-            renderGallery();
-
-            await syncToDriveNow();
-
-            alert(`사진 ${photos.length}장 가져오기 완료`);
-
-        }catch{
-
-            alert("올바른 사진 백업 파일이 아닙니다.");
-
-        }
-
-        importPhotosFile.value="";
-
-    };
-
-    reader.readAsText(file);
-
-};
 
 /* ============================= */
 
@@ -2375,9 +2296,9 @@ const THEME_KEY = "bucket_theme";
 const THEMES = ["default", "dark", "apple", "glass"];
 
 const THEME_ICONS = {
-    default: "🌙",
-    dark: "☀️",
-    apple: "🍏",
+    default: "☀️",
+    dark: "🌙",
+    apple: "🪨",
     glass: "💧"
 };
 
@@ -3124,39 +3045,6 @@ importFile.onchange=e=>{
 
 };
 
-/* ============================= */
-/* 전체 삭제 */
-/* ============================= */
-
-deleteAllButton.onclick=async()=>{
-
-    if(
-
-    confirm(
-
-    "모든 버킷을 삭제하시겠습니까?"
-
-    )
-
-    ){
-
-        await backupSnapshotToDrive("전체삭제전");
-
-        for(const bucket of buckets){
-
-            await deleteAllBucketPhotos(bucket);
-
-        }
-
-        buckets=[];
-
-        saveStorage();
-
-        render();
-
-    }
-
-};
 
 /* ============================= */
 /* 통계 */

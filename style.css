@@ -283,6 +283,11 @@ body.apple .category.active{
     inset 0 1px 0 rgba(255,255,255,.5),
     inset 0 -4px 8px rgba(0,0,0,.22);
 
+    -webkit-mask-image:-webkit-linear-gradient(#000, #000);
+
+    transform:translateZ(0);
+    -webkit-transform:translateZ(0);
+
 }
 
 body.apple .fab{
@@ -1260,6 +1265,11 @@ main{
     box-shadow:0 8px 18px rgba(0,0,0,.05);
 
     transition:.25s;
+
+    -webkit-mask-image:-webkit-linear-gradient(#000, #000);
+
+    transform:translateZ(0);
+    -webkit-transform:translateZ(0);
 
 }
 

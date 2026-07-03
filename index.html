@@ -1,3121 +1,948 @@
-/* =======================================================
-   Bucket App v0.2
-   app.js - Part 1
-======================================================= */
-
-const STORAGE_KEY = "bucket_v02";
-const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
-
-/* ===== Google Drive 자동 저장 설정 =====
-   1) https://console.cloud.google.com 에서 프로젝트 생성
-   2) API 및 서비스 > 라이브러리 > "Google Drive API" 사용 설정
-   3) API 및 서비스 > 사용자 인증 정보 > OAuth 클라이언트 ID 만들기 (웹 애플리케이션)
-   4) "승인된 자바스크립트 원본"에 이 앱이 열리는 주소를 추가
-      예) http://localhost:5500 또는 https://내계정.github.io
-   5) 발급받은 클라이언트 ID를 아래에 붙여넣기
-====================================== */
+<!DOCTYPE html>
+<html lang="ko">
 
-const GOOGLE_CLIENT_ID = "516093946835-qkq6q5tloe2f5p9dmucmafq07nrdbadp.apps.googleusercontent.com";
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-const DRIVE_FILE_NAME = "bucket_app_backup.json";
-const DRIVE_FILE_ID_KEY = "bucket_drive_file_id";
-const DRIVE_CONNECTED_KEY = "bucket_drive_connected";
-const DRIVE_LAST_SYNC_KEY = "bucket_drive_last_sync";
-const PHOTO_DB_NAME = "bucket_photos_v2";
-const PHOTO_STORE = "photos";
-const PHOTO_MAX_SIZE = 1200;
-const PHOTO_QUALITY = 0.75;
-const PHOTO_LIMIT = 20;
-const BACKUP_VERSION = 3;
+<head>
 
-let buckets = [];
-let editingId = null;
-let currentCategory = "전체";
-let sortMode = "latest";
-let completingBucketId = null;
-let pendingPhotos = [];
-let viewingPhotoId = null;
-let celebrateMode = "complete";
+    <meta charset="UTF-8">
 
-let googleAccessToken = null;
-let googleTokenClient = null;
-let driveSyncTimer = null;
-let driveSyncInProgress = false;
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-const quotes = [
-    "오늘의 작은 한 걸음이 내일의 큰 변화를 만듭니다.",
-    "꿈은 적는 순간 목표가 됩니다.",
-    "시작이 가장 어려운 법입니다.",
-    "포기하지 않는 사람이 결국 이깁니다.",
-    "지금이 가장 젊은 순간입니다.",
-    "하고 싶은 일은 미루지 마세요.",
-    "매일 1%씩 성장하면 충분합니다.",
-    "오늘을 후회 없이 살아보세요."
-];
+    <meta
+        name="theme-color"
+        content="#F5F7FB">
 
-/* ============================= */
+    <title>Bucket</title>
 
-const pages = document.querySelectorAll(".page");
+    <link
+        rel="stylesheet"
+        href="style.css">
 
-const navButtons = document.querySelectorAll(".navButton");
+    <script
+        src="https://accounts.google.com/gsi/client"
+        async
+        defer
+        onload="if(window.onGisLoad){window.onGisLoad();}"></script>
 
-const bucketList = document.getElementById("bucketList");
+</head>
 
-const searchInput = document.getElementById("searchInput");
+<body>
 
-const categoryButtons =
-document.querySelectorAll(".category");
+    <!-- ========================= -->
 
-const addButton =
-document.getElementById("addButton");
+    <!-- HEADER -->
 
-const bucketModal =
-document.getElementById("bucketModal");
+    <!-- ========================= -->
 
-const saveButton =
-document.getElementById("saveButton");
+    <header class="header">
 
-const cancelButton =
-document.getElementById("cancelButton");
+        <div class="logo">
 
-const titleInput =
-document.getElementById("titleInput");
+            Bucket<span>.</span>
 
-const memoInput =
-document.getElementById("memoInput");
+        </div>
 
-const categoryInput =
-document.getElementById("categoryInput");
+        <div class="headerButtons">
 
-const dateInput =
-document.getElementById("dateInput");
+            <button id="themeButton">
 
-const starInput =
-document.getElementById("starInput");
+                🌙
 
-const progressCircle =
-document.getElementById("progressCircle");
+            </button>
 
-const progressPercent =
-document.getElementById("progressPercent");
+        </div>
 
-const totalCount =
-document.getElementById("totalCount");
+    </header>
 
-const doneCount =
-document.getElementById("doneCount");
+    <!-- ========================= -->
 
-const remainCount =
-document.getElementById("remainCount");
+    <!-- MAIN -->
 
-const todayDate =
-document.getElementById("todayDate");
+    <!-- ========================= -->
 
-const todayQuote =
-document.getElementById("todayQuote");
+    <main id="app">
 
-const addQuoteButton =
-document.getElementById("addQuoteButton");
+        <!-- ========================= -->
 
-const quoteModal =
-document.getElementById("quoteModal");
+        <!-- HOME -->
 
-const quoteTextInput =
-document.getElementById("quoteTextInput");
+        <!-- ========================= -->
 
-const quoteAddSaveButton =
-document.getElementById("quoteAddSaveButton");
+        <section
+            id="homePage"
+            class="page active">
 
-const quoteCloseButton =
-document.getElementById("quoteCloseButton");
+            <div class="heroCard">
 
-const myQuoteList =
-document.getElementById("myQuoteList");
+                <p
+                    class="today"
+                    id="todayDate">
 
-const googleDriveButton =
-document.getElementById("googleDriveButton");
+                </p>
 
-const googleDriveStatus =
-document.getElementById("googleDriveStatus");
+                <h1>
 
-const googleDriveTime =
-document.getElementById("googleDriveTime");
+                    오늘도<br>
 
-const recentBuckets =
-document.getElementById("recentBuckets");
+                    하나의 꿈을 이루어보세요.
 
-const themeButton =
-document.getElementById("themeButton");
+                </h1>
 
-const themeOptionButtons =
-document.querySelectorAll(".themeOption");
+                <div class="progressWrapper">
 
-const exportButton =
-document.getElementById("exportButton");
+                    <div
+                        class="progressCircle"
+                        id="progressCircle">
 
-const importButton =
-document.getElementById("importButton");
+                        <span id="progressPercent">
 
-const importFile =
-document.getElementById("importFile");
+                            0%
 
-const deleteAllButton =
-document.getElementById("deleteAllButton");
+                        </span>
 
-const celebrateModal =
-document.getElementById("celebrateModal");
+                    </div>
 
-const celebrateTitle =
-document.getElementById("celebrateTitle");
+                </div>
 
-const photoInput =
-document.getElementById("photoInput");
+                <div class="heroStats">
 
-const photoPreview =
-document.getElementById("photoPreview");
+                    <div class="statCard">
 
-const photoPlaceholder =
-document.getElementById("photoPlaceholder");
+                        <h2 id="totalCount">
 
-const celebrateSaveButton =
-document.getElementById("celebrateSaveButton");
+                            0
 
-const celebrateSkipButton =
-document.getElementById("celebrateSkipButton");
+                        </h2>
 
-const photoViewModal =
-document.getElementById("photoViewModal");
+                        <p>
 
-const photoViewImage =
-document.getElementById("photoViewImage");
+                            전체
 
-const photoViewTitle =
-document.getElementById("photoViewTitle");
+                        </p>
 
-const closePhotoView =
-document.getElementById("closePhotoView");
+                    </div>
 
-const photoPreviewGrid =
-document.getElementById("photoPreviewGrid");
+                    <div class="statCard">
 
-const photoLimitHint =
-document.getElementById("photoLimitHint");
+                        <h2 id="doneCount">
 
-const photoInputLabel =
-document.getElementById("photoInputLabel");
+                            0
 
-const replacePhotoButton =
-document.getElementById("replacePhotoButton");
+                        </h2>
 
-const deletePhotoButton =
-document.getElementById("deletePhotoButton");
+                        <p>
 
-const replacePhotoInput =
-document.getElementById("replacePhotoInput");
+                            완료
 
-const photoViewBucket =
-document.getElementById("photoViewBucket");
+                        </p>
 
-const galleryGrid =
-document.getElementById("galleryGrid");
+                    </div>
 
-const galleryCount =
-document.getElementById("galleryCount");
+                    <div class="statCard">
 
-const exportPhotosButton =
-document.getElementById("exportPhotosButton");
+                        <h2 id="remainCount">
 
-const importPhotosButton =
-document.getElementById("importPhotosButton");
+                            0
 
-const importPhotosFile =
-document.getElementById("importPhotosFile");
+                        </h2>
 
-/* ============================= */
+                        <p>
 
-function getPhotoLimit(){
+                            남음
 
-    return PHOTO_LIMIT;
+                        </p>
 
-}
+                    </div>
 
-function ensurePhotoIds(bucket){
+                </div>
 
-    if(!Array.isArray(bucket.photoIds)){
+            </div>
 
-        bucket.photoIds=[];
+            <section class="quoteCard">
 
-    }
+                <div class="quoteCardHeader">
 
-}
+                    <h3>
 
-function openPhotoDB(){
+                        오늘의 문구
 
-    return new Promise((resolve, reject)=>{
+                    </h3>
 
-        const request=
-        indexedDB.open(PHOTO_DB_NAME, 1);
+                    <button
+                        id="addQuoteButton"
+                        class="quoteAddButton"
+                        title="나만의 문구 추가">
 
-        request.onupgradeneeded=()=>{
+                        +
 
-            const db=request.result;
+                    </button>
 
-            if(!db.objectStoreNames.contains(PHOTO_STORE)){
+                </div>
 
-                db.createObjectStore(PHOTO_STORE);
+                <p id="todayQuote">
 
-            }
+                </p>
 
-        };
+            </section>
 
-        request.onsuccess=()=>resolve(request.result);
+            <section class="recentCard">
 
-        request.onerror=()=>reject(request.error);
+                <h3>
 
-    });
+                    최근 목표
 
-}
+                </h3>
 
-async function savePhotoRecord(photoId, record){
+                <div
+                    id="recentBuckets">
 
-    const db=await openPhotoDB();
+                </div>
 
-    return new Promise((resolve, reject)=>{
+            </section>
 
-        const tx=db.transaction(PHOTO_STORE, "readwrite");
+        </section>
 
-        tx.objectStore(PHOTO_STORE).put(record, photoId);
+        <!-- ========================= -->
 
-        tx.oncomplete=()=>{
+        <!-- BUCKET -->
 
-            db.close();
+        <!-- ========================= -->
 
-            resolve();
+        <section
+            id="bucketPage"
+            class="page">
 
-        };
+            <div class="searchArea">
 
-        tx.onerror=()=>reject(tx.error);
+                <input
+                    id="searchInput"
+                    placeholder="버킷 검색">
 
-    });
+                <button
+                    id="sortButton">
 
-}
+                    ⇅
 
-async function getPhotoRecord(photoId){
+                </button>
 
-    const db=await openPhotoDB();
+            </div>
 
-    return new Promise((resolve, reject)=>{
+            <div
+                class="categoryList"
+                id="categoryList">
 
-        const tx=db.transaction(PHOTO_STORE, "readonly");
+                <button
+                    class="category active"
+                    data-category="전체">
 
-        const request=
-        tx.objectStore(PHOTO_STORE).get(photoId);
+                    전체
 
-        request.onsuccess=()=>{
+                </button>
 
-            db.close();
+                <button
+                    class="category"
+                    data-category="여행">
 
-            resolve(request.result || null);
+                    여행
 
-        };
+                </button>
 
-        request.onerror=()=>reject(request.error);
+                <button
+                    class="category"
+                    data-category="자기계발">
 
-    });
+                    자기계발
 
-}
+                </button>
 
-async function deletePhotoRecord(photoId){
+                <button
+                    class="category"
+                    data-category="건강">
 
-    const db=await openPhotoDB();
+                    건강
 
-    return new Promise((resolve, reject)=>{
+                </button>
 
-        const tx=db.transaction(PHOTO_STORE, "readwrite");
+                <button
+                    class="category"
+                    data-category="재테크">
 
-        tx.objectStore(PHOTO_STORE).delete(photoId);
+                    재테크
 
-        tx.oncomplete=()=>{
+                </button>
 
-            db.close();
+                <button
+                    class="category"
+                    data-category="취미">
 
-            resolve();
+                    취미
 
-        };
+                </button>
 
-        tx.onerror=()=>reject(tx.error);
+                <button
+                    class="category"
+                    data-category="기타">
 
-    });
+                    기타
 
-}
+                </button>
 
-async function getAllPhotoRecords(){
+            </div>
 
-    const db=await openPhotoDB();
+            <div
+                id="bucketList">
 
-    return new Promise((resolve, reject)=>{
+            </div>
 
-        const tx=db.transaction(PHOTO_STORE, "readonly");
+        </section>
 
-        const request=
-        tx.objectStore(PHOTO_STORE).getAll();
+        <!-- ========================= -->
 
-        request.onsuccess=()=>{
+        <!-- GALLERY -->
 
-            db.close();
+        <!-- ========================= -->
 
-            resolve(request.result || []);
+        <section
+            id="galleryPage"
+            class="page">
 
-        };
+            <div class="galleryHeader">
 
-        request.onerror=()=>reject(request.error);
+                <h2>
 
-    });
+                    기념 앨범
 
-}
+                </h2>
 
-async function getAllPhotoKeys(){
+                <p id="galleryCount">
 
-    const db=await openPhotoDB();
+                    0장
 
-    return new Promise((resolve, reject)=>{
+                </p>
 
-        const tx=db.transaction(PHOTO_STORE, "readonly");
+            </div>
 
-        const request=
-        tx.objectStore(PHOTO_STORE).getAllKeys();
+            <div
+                id="galleryGrid"
+                class="galleryGrid">
 
-        request.onsuccess=()=>{
+            </div>
 
-            db.close();
+        </section>
 
-            resolve(request.result || []);
+        <!-- ========================= -->
 
-        };
+        <!-- STATS -->
 
-        request.onerror=()=>reject(request.error);
+        <!-- ========================= -->
 
-    });
+        <section
+            id="statsPage"
+            class="page">
 
-}
+            <h2>
 
-async function clearAllPhotoRecords(){
+                통계
 
-    const db=await openPhotoDB();
+            </h2>
 
-    return new Promise((resolve, reject)=>{
+            <div
+                id="statsContainer">
 
-        const tx=db.transaction(PHOTO_STORE, "readwrite");
+            </div>
 
-        tx.objectStore(PHOTO_STORE).clear();
+        </section>
 
-        tx.oncomplete=()=>{
+                <!-- ========================= -->
+        <!-- SETTINGS -->
+        <!-- ========================= -->
 
-            db.close();
+        <section
+            id="settingsPage"
+            class="page">
 
-            resolve();
+            <h2>
 
-        };
+                설정
 
-        tx.onerror=()=>reject(tx.error);
+            </h2>
 
-    });
+            <div class="settingsList">
 
-}
+                <div class="settingItem themeSettingItem">
 
-async function migrateLegacyPhotos(){
+                    <span>🎨 테마</span>
 
-    const legacyDbName="bucket_photos_v1";
+                    <div class="themeOptions" id="themeOptions">
 
-    return new Promise(resolve=>{
+                        <button class="themeOption" data-theme="default">
+                            <span class="themeSwatch themeSwatchDefault"></span>
+                            기본
+                        </button>
 
-        const request=indexedDB.open(legacyDbName, 1);
+                        <button class="themeOption" data-theme="dark">
+                            <span class="themeSwatch themeSwatchDark"></span>
+                            다크
+                        </button>
 
-        request.onsuccess=async()=>{
+                        <button class="themeOption" data-theme="apple">
+                            <span class="themeSwatch themeSwatchApple"></span>
+                            애플
+                        </button>
 
-            const db=request.result;
+                        <button class="themeOption" data-theme="glass">
+                            <span class="themeSwatch themeSwatchGlass"></span>
+                            글래스
+                        </button>
 
-            if(!db.objectStoreNames.contains("photos")){
+                    </div>
 
-                db.close();
+                </div>
 
-                resolve();
+                <button
+                    class="settingItem"
+                    id="googleDriveButton">
 
-                return;
+                    <span>☁️ 구글 드라이브 자동 저장</span>
 
-            }
+                    <span class="driveStatusWrap">
 
-            const tx=db.transaction("photos", "readonly");
+                        <span id="googleDriveStatus">연결하기</span>
 
-            const getAll=tx.objectStore("photos").getAll();
+                        <small id="googleDriveTime"></small>
 
-            const getKeys=tx.objectStore("photos").getAllKeys();
+                    </span>
 
-            Promise.all([
-                new Promise(r=>{
-                    getAll.onsuccess=()=>r(getAll.result || []);
-                }),
-                new Promise(r=>{
-                    getKeys.onsuccess=()=>r(getKeys.result || []);
-                })
-            ]).then(async([values, keys])=>{
+                </button>
 
-                for(let i=0; i<keys.length; i++){
+                <button
+                    class="settingItem"
+                    id="exportButton">
 
-                    const bucketId=Number(keys[i]);
+                    <span>📤 전체 백업</span>
 
-                    const dataUrl=values[i];
+                    <span>›</span>
 
-                    if(!dataUrl || typeof dataUrl!=="string") continue;
+                </button>
 
-                    const bucket=
-                    buckets.find(b=>b.id===bucketId);
+                <button
+                    class="settingItem"
+                    id="importButton">
 
-                    if(!bucket) continue;
+                    <span>📥 전체 가져오기</span>
 
-                    ensurePhotoIds(bucket);
+                    <span>›</span>
 
-                    if(bucket.photoIds.length>0) continue;
+                </button>
 
-                    const photoId=Date.now()+i;
+                <input
+                    type="file"
+                    id="importFile"
+                    accept=".json"
+                    hidden>
 
-                    await savePhotoRecord(photoId, {
-                        bucketId,
-                        dataUrl,
-                        createdAt:Date.now()
-                    });
+                <button
+                    class="settingItem"
+                    id="exportPhotosButton">
 
-                    bucket.photoIds.push(photoId);
+                    <span>🖼 사진만 백업</span>
 
-                }
+                    <span>›</span>
 
-                db.close();
+                </button>
 
-                indexedDB.deleteDatabase(legacyDbName);
+                <button
+                    class="settingItem"
+                    id="importPhotosButton">
 
-                saveStorage();
+                    <span>📥 사진만 가져오기</span>
 
-                resolve();
+                    <span>›</span>
 
-            });
+                </button>
 
-        };
+                <input
+                    type="file"
+                    id="importPhotosFile"
+                    accept=".json"
+                    hidden>
 
-        request.onerror=()=>resolve();
+                <button
+                    class="settingItem danger"
+                    id="deleteAllButton">
 
-    });
+                    <span>🗑 전체 삭제</span>
 
-}
+                    <span>›</span>
 
-function normalizeBuckets(){
+                </button>
 
-    buckets.forEach(bucket=>{
+            </div>
 
-        ensurePhotoIds(bucket);
+            <div class="appInfo">
 
-        if(bucket.hasPhoto && bucket.photoIds.length===0){
+                <h3>
 
-            delete bucket.hasPhoto;
+                    Bucket v0.3
 
-        }
+                </h3>
 
-    });
+                <p>
 
-}
+                    나만의 버킷리스트를 기록하고
+                    목표를 달성해보세요.
 
-function getBucketPhotoCount(bucket){
+                </p>
 
-    ensurePhotoIds(bucket);
+            </div>
 
-    return bucket.photoIds.length;
+        </section>
 
-}
+    </main>
 
-function canAddMorePhotos(bucket, extraCount=1){
+    <!-- ========================= -->
+    <!-- ADD BUTTON -->
+    <!-- ========================= -->
 
-    return getBucketPhotoCount(bucket)+extraCount<=getPhotoLimit();
+    <button
+        id="addButton"
+        class="fab">
 
-}
+        +
 
-async function addPhotoToBucket(bucket, dataUrl){
+    </button>
 
-    ensurePhotoIds(bucket);
+    <!-- ========================= -->
+    <!-- ADD / EDIT MODAL -->
+    <!-- ========================= -->
 
-    if(!canAddMorePhotos(bucket)){
+    <div
+        class="modal"
+        id="bucketModal">
 
-        alert(`버킷당 최대 ${PHOTO_LIMIT}장까지 저장할 수 있습니다.`);
+        <div class="modalSheet">
 
-        return null;
+            <div class="sheetHeader">
 
-    }
+                <h2 id="modalTitle">
 
-    const photoId=Date.now()+Math.floor(Math.random()*1000);
+                    새 버킷리스트
 
-    await savePhotoRecord(photoId, {
-        bucketId:bucket.id,
-        dataUrl,
-        createdAt:Date.now()
-    });
+                </h2>
 
-    bucket.photoIds.push(photoId);
+            </div>
 
-    saveStorage();
+            <div class="inputGroup">
 
-    return photoId;
+                <label>
 
-}
+                    제목
 
-async function removePhotoFromBucket(bucket, photoId){
+                </label>
 
-    ensurePhotoIds(bucket);
+                <input
+                    id="titleInput"
+                    placeholder="예) 오로라 보기">
 
-    bucket.photoIds=
-    bucket.photoIds.filter(
-        id=>Number(id)!==Number(photoId)
-    );
+            </div>
 
-    await deletePhotoRecord(photoId);
+            <div class="inputGroup">
 
-    saveStorage();
+                <label>
 
-}
+                    카테고리
 
-async function replacePhotoRecord(photoId, dataUrl){
+                </label>
 
-    const record=await getPhotoRecord(photoId);
+                <select
+                    id="categoryInput">
 
-    if(!record) return false;
+                    <option>여행</option>
+                    <option>자기계발</option>
+                    <option>건강</option>
+                    <option>재테크</option>
+                    <option>취미</option>
+                    <option>기타</option>
 
-    record.dataUrl=dataUrl;
+                </select>
 
-    await savePhotoRecord(photoId, record);
+            </div>
 
-    return true;
+            <div class="doubleRow">
 
-}
+                <div class="inputGroup">
 
-async function deleteAllBucketPhotos(bucket){
+                    <label>
 
-    ensurePhotoIds(bucket);
+                        목표 날짜
 
-    for(const photoId of [...bucket.photoIds]){
+                    </label>
 
-        await deletePhotoRecord(photoId);
+                    <input
+                        type="date"
+                        id="dateInput">
 
-    }
+                </div>
 
-    bucket.photoIds=[];
+                <div class="inputGroup">
 
-}
+                    <label>
 
-async function getAllPhotosWithMeta(){
+                        중요도
 
-    const keys=await getAllPhotoKeys();
+                    </label>
 
-    const photos=[];
+                    <select
+                        id="starInput">
 
-    for(const photoId of keys){
+                        <option value="false">
 
-        const record=await getPhotoRecord(photoId);
+                            일반
 
-        if(!record) continue;
+                        </option>
 
-        const bucket=
-        buckets.find(b=>b.id===record.bucketId);
+                        <option value="true">
 
-        photos.push({
-            photoId:Number(photoId),
-            bucketId:record.bucketId,
-            dataUrl:record.dataUrl,
-            createdAt:record.createdAt || 0,
-            bucketTitle:bucket?.title || "삭제된 버킷"
-        });
+                            ⭐ 중요
 
-    }
+                        </option>
 
-    return photos.sort((a,b)=>b.createdAt-a.createdAt);
+                    </select>
 
-}
+                </div>
 
-async function buildPhotosExport(){
+            </div>
 
-    const keys=await getAllPhotoKeys();
+            <div class="inputGroup">
 
-    const photos=[];
+                <label>
 
-    for(const photoId of keys){
+                    메모
 
-        const record=await getPhotoRecord(photoId);
+                </label>
 
-        if(!record) continue;
+                <textarea
+                    id="memoInput"
+                    rows="5"
+                    placeholder="메모를 입력하세요."></textarea>
 
-        photos.push({
-            id:Number(photoId),
-            bucketId:record.bucketId,
-            dataUrl:record.dataUrl,
-            createdAt:record.createdAt || Date.now()
-        });
+            </div>
 
-    }
+            <div class="modalButtons">
 
-    return photos;
+                <button
+                    id="saveButton"
+                    class="primaryButton">
 
-}
+                    저장
 
-async function restorePhotosExport(photos, replace=false){
+                </button>
 
-    if(replace){
+                <button
+                    id="cancelButton"
+                    class="secondaryButton">
 
-        await clearAllPhotoRecords();
+                    취소
 
-        buckets.forEach(bucket=>{
+                </button>
 
-            bucket.photoIds=[];
+            </div>
 
-        });
+        </div>
 
-    }
+    </div>
 
-    for(const photo of photos){
+    <!-- ========================= -->
+    <!-- QUOTE MODAL -->
+    <!-- ========================= -->
 
-        if(!photo?.dataUrl || !photo?.bucketId) continue;
+    <div
+        class="modal"
+        id="quoteModal">
 
-        const bucket=
-        buckets.find(b=>b.id===photo.bucketId);
+        <div class="modalSheet">
 
-        if(!bucket) continue;
+            <div class="sheetHeader">
 
-        ensurePhotoIds(bucket);
+                <h2>
 
-        const photoId=photo.id || Date.now()+Math.floor(Math.random()*1000);
+                    나만의 문구
 
-        if(bucket.photoIds.includes(photoId)) continue;
+                </h2>
 
-        await savePhotoRecord(photoId, {
-            bucketId:photo.bucketId,
-            dataUrl:photo.dataUrl,
-            createdAt:photo.createdAt || Date.now()
-        });
+            </div>
 
-        bucket.photoIds.push(photoId);
+            <div class="inputGroup">
 
-    }
+                <label>
 
-    saveStorage();
+                    새 문구 입력
 
-}
+                </label>
 
-function downloadJson(data, filename){
+                <textarea
+                    id="quoteTextInput"
+                    rows="3"
+                    placeholder="예) 나만의 응원 문구를 적어보세요."></textarea>
 
-    const blob=
-    new Blob(
-        [JSON.stringify(data, null, 2)],
-        { type:"application/json" }
-    );
+            </div>
 
-    const url=URL.createObjectURL(blob);
+            <div class="modalButtons">
 
-    const a=document.createElement("a");
+                <button
+                    id="quoteAddSaveButton"
+                    class="primaryButton">
 
-    a.href=url;
+                    추가
 
-    a.download=filename;
+                </button>
 
-    a.click();
+                <button
+                    id="quoteCloseButton"
+                    class="secondaryButton">
 
-    URL.revokeObjectURL(url);
+                    닫기
 
-}
+                </button>
 
-function compressImage(file){
+            </div>
 
-    return new Promise((resolve, reject)=>{
+            <div
+                id="myQuoteList"
+                class="myQuoteList">
 
-        const reader=new FileReader();
+            </div>
 
-        reader.onload=()=>{
+        </div>
 
-            const img=new Image();
+    </div>
 
-            img.onload=()=>{
+    <!-- ========================= -->
+    <!-- COMPLETE CELEBRATION MODAL -->
+    <!-- ========================= -->
 
-                const scale=
-                Math.min(
-                    1,
-                    PHOTO_MAX_SIZE /
-                    Math.max(img.width, img.height)
-                );
+    <div
+        class="modal"
+        id="celebrateModal">
 
-                const canvas=
-                document.createElement("canvas");
+        <div class="modalSheet">
 
-                canvas.width=
-                Math.round(img.width * scale);
+            <div class="sheetHeader celebrateHeader">
 
-                canvas.height=
-                Math.round(img.height * scale);
+                <div class="celebrateEmoji">🎉</div>
 
-                const ctx=
-                canvas.getContext("2d");
+                <h2 id="celebrateTitle">
 
-                ctx.drawImage(
-                    img,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height
-                );
+                    목표 달성!
 
-                resolve(
-                    canvas.toDataURL(
-                        "image/jpeg",
-                        PHOTO_QUALITY
-                    )
-                );
+                </h2>
 
-            };
+                <p class="celebrateSub">
 
-            img.onerror=reject;
+                    기념 사진을 남겨보세요.
 
-            img.src=reader.result;
+                </p>
 
-        };
+            </div>
 
-        reader.onerror=reject;
+            <div class="inputGroup">
 
-        reader.readAsDataURL(file);
+                <label id="photoInputLabel">
 
-    });
+                    기념 사진 (선택)
 
-}
+                </label>
 
-function resetCelebrateForm(){
+                <p
+                    class="photoLimitHint"
+                    id="photoLimitHint">
 
-    pendingPhotos=[];
+                </p>
 
-    photoInput.value="";
+                <label
+                    class="photoUpload"
+                    id="photoUploadArea">
 
-    photoPreview.src="";
+                    <input
+                        type="file"
+                        id="photoInput"
+                        accept="image/*"
+                        hidden>
 
-    photoPreview.classList.add("hidden");
+                    <div
+                        class="photoPlaceholder"
+                        id="photoPlaceholder">
 
-    photoPlaceholder.classList.remove("hidden");
+                        <span>📷</span>
 
-    photoPreviewGrid.innerHTML="";
+                        <p>
 
-    photoPreviewGrid.classList.add("hidden");
+                            탭해서 사진 선택
 
-    updateCelebrateHint();
+                        </p>
 
-}
+                    </div>
 
-function updateCelebrateHint(){
+                    <img
+                        id="photoPreview"
+                        class="photoPreview hidden"
+                        alt="기념 사진 미리보기">
 
-    const bucket=
-    buckets.find(b=>b.id===completingBucketId);
+                </label>
 
-    const existingCount=
-    bucket ? getBucketPhotoCount(bucket) : 0;
+                <div
+                    id="photoPreviewGrid"
+                    class="photoPreviewGrid hidden">
 
-    const remaining=
-    getPhotoLimit()-existingCount-pendingPhotos.length;
+                </div>
 
-    photoLimitHint.textContent=
-    `버킷당 최대 ${PHOTO_LIMIT}장 · 추가 가능 ${Math.max(remaining,0)}장`;
+            </div>
 
-    photoInput.multiple=true;
+            <div class="modalButtons">
 
-    photoInputLabel.textContent=
-    "기념 사진 (여러 장 선택 가능)";
+                <button
+                    id="celebrateSaveButton"
+                    class="primaryButton">
 
-}
+                    완료 저장
 
-function renderPendingPreviews(){
+                </button>
 
-    photoPreviewGrid.innerHTML="";
+                <button
+                    id="celebrateSkipButton"
+                    class="secondaryButton">
 
-    if(pendingPhotos.length===0){
+                    사진 없이 완료
 
-        photoPreviewGrid.classList.add("hidden");
+                </button>
 
-        if(!photoPreview.src){
+            </div>
 
-            photoPreview.classList.add("hidden");
+        </div>
 
-            photoPlaceholder.classList.remove("hidden");
+    </div>
 
-        }
+    <!-- ========================= -->
+    <!-- PHOTO VIEW MODAL -->
+    <!-- ========================= -->
 
-        return;
+    <div
+        class="modal photoViewModal"
+        id="photoViewModal">
 
-    }
-
-    photoPreviewGrid.classList.remove("hidden");
-
-    photoPreview.classList.add("hidden");
-
-    photoPlaceholder.classList.add("hidden");
-
-    pendingPhotos.forEach((dataUrl, index)=>{
-
-        const item=document.createElement("div");
-
-        item.className="previewItem";
-
-        item.innerHTML=`
-
-            <img src="${dataUrl}" alt="미리보기">
+        <div class="photoViewContent">
 
             <button
-                type="button"
-                class="previewRemove"
-                data-index="${index}">
+                id="closePhotoView"
+                class="photoViewClose">
 
                 ✕
 
             </button>
 
-        `;
-
-        item.querySelector(".previewRemove").onclick=e=>{
-
-            e.preventDefault();
-
-            e.stopPropagation();
-
-            pendingPhotos.splice(index, 1);
-
-            renderPendingPreviews();
-
-            updateCelebrateHint();
-
-        };
-
-        photoPreviewGrid.appendChild(item);
-
-    });
-
-}
-
-function openCelebrateModal(item, mode="complete"){
-
-    completingBucketId=item.id;
-
-    celebrateMode=mode;
-
-    celebrateTitle.textContent=
-    mode==="complete"
-    ? `"${item.title}" 달성!`
-    : `"${item.title}" 사진 추가`;
-
-    celebrateSkipButton.textContent=
-    mode==="complete"
-    ? "사진 없이 완료"
-    : "닫기";
-
-    celebrateSaveButton.textContent=
-    mode==="complete"
-    ? "완료 저장"
-    : "사진 저장";
-
-    resetCelebrateForm();
-
-    celebrateModal.classList.add("show");
-
-}
-
-function closeCelebrateModal(){
-
-    celebrateModal.classList.remove("show");
-
-    completingBucketId=null;
-
-    celebrateMode="complete";
-
-    resetCelebrateForm();
-
-}
-
-function openPhotoView(photo){
-
-    viewingPhotoId=photo.photoId;
-
-    photoViewTitle.textContent=photo.bucketTitle;
-
-    photoViewBucket.textContent=
-    new Date(photo.createdAt).toLocaleDateString("ko-KR")+
-    " · 탭하여 관리";
-
-    photoViewImage.src=photo.dataUrl;
-
-    photoViewModal.classList.add("show");
-
-}
-
-function closePhotoViewModal(){
-
-    photoViewModal.classList.remove("show");
-
-    photoViewImage.src="";
-
-    viewingPhotoId=null;
-
-}
-
-async function finishCompletion(withPhoto){
-
-    const item=
-    buckets.find(
-        b=>b.id===completingBucketId
-    );
-
-    if(!item) return;
-
-    if(celebrateMode==="complete"){
-
-        item.completed=true;
-
-    }
-
-    if(withPhoto && pendingPhotos.length>0){
-
-        for(const dataUrl of pendingPhotos){
-
-            if(!canAddMorePhotos(item)) break;
-
-            await addPhotoToBucket(item, dataUrl);
-
-        }
-
-    }
-
-    saveStorage();
-
-    closeCelebrateModal();
-
-    render();
-
-    if(document.getElementById("galleryPage").classList.contains("active")){
-
-        renderGallery();
-
-    }
-
-}
-
-async function renderBucketPhotos(item, container){
-
-    ensurePhotoIds(item);
-
-    if(!item.completed || item.photoIds.length===0) return;
-
-    const photos=[];
-
-    for(const photoId of item.photoIds){
-
-        const record=await getPhotoRecord(photoId);
-
-        if(!record){
-
-            await removePhotoFromBucket(item, photoId);
-
-            continue;
-
-        }
-
-        photos.push({
-            photoId,
-            bucketId:item.id,
-            dataUrl:record.dataUrl,
-            createdAt:record.createdAt || 0,
-            bucketTitle:item.title
-        });
-
-    }
-
-    if(photos.length===0) return;
-
-    const wrap=document.createElement("div");
-
-    wrap.className="bucketPhotoGrid";
-
-    if(photos.length>1){
-
-        const count=document.createElement("div");
-
-        count.className="bucketPhotoCount";
-
-        count.textContent=
-        `📷 기념 사진 ${photos.length}장`;
-
-        wrap.appendChild(count);
-
-    }
-
-    photos.slice(0, 3).forEach(photo=>{
-
-        const photoWrap=document.createElement("div");
-
-        photoWrap.className="bucketPhoto";
-
-        photoWrap.innerHTML=`<img src="${photo.dataUrl}" alt="기념 사진">`;
-
-        photoWrap.onclick=()=>openPhotoView(photo);
-
-        wrap.appendChild(photoWrap);
-
-    });
-
-    container.insertBefore(
-        wrap,
-        container.querySelector(".bucketButtons")
-    );
-
-}
-
-photoInput.onchange=async e=>{
-
-    const files=[...e.target.files];
-
-    if(files.length===0) return;
-
-    const bucket=
-    buckets.find(b=>b.id===completingBucketId);
-
-    for(const file of files){
-
-        if(!file.type.startsWith("image/")) continue;
-
-        if(!canAddMorePhotos(
-            bucket || { photoIds:[] },
-            pendingPhotos.length+1
-        )){
-
-            alert(`버킷당 최대 ${PHOTO_LIMIT}장까지 저장할 수 있습니다.`);
-
-            break;
-
-        }
-
-        try{
-
-            const dataUrl=await compressImage(file);
-
-            pendingPhotos.push(dataUrl);
-
-        }catch{
-
-            alert("사진을 불러오지 못했습니다.");
-
-        }
-
-    }
-
-    renderPendingPreviews();
-
-    updateCelebrateHint();
-
-    photoInput.value="";
-
-};
-
-celebrateSaveButton.onclick=()=>{
-
-    finishCompletion(pendingPhotos.length>0 || !!photoPreview.src);
-
-};
-
-celebrateSkipButton.onclick=()=>{
-
-    if(celebrateMode==="complete"){
-
-        finishCompletion(false);
-
-    }else{
-
-        closeCelebrateModal();
-
-    }
-
-};
-
-celebrateModal.onclick=e=>{
-
-    if(e.target===celebrateModal){
-
-        closeCelebrateModal();
-
-    }
-
-};
-
-photoViewModal.onclick=e=>{
-
-    if(e.target===photoViewModal){
-
-        closePhotoViewModal();
-
-    }
-
-};
-
-closePhotoView.onclick=closePhotoViewModal;
-
-replacePhotoButton.onclick=()=>{
-
-    replacePhotoInput.click();
-
-};
-
-replacePhotoInput.onchange=async e=>{
-
-    const file=e.target.files[0];
-
-    if(!file || !viewingPhotoId) return;
-
-    if(!file.type.startsWith("image/")){
-
-        alert("이미지 파일만 업로드할 수 있습니다.");
-
-        return;
-
-    }
-
-    try{
-
-        const dataUrl=await compressImage(file);
-
-        await replacePhotoRecord(viewingPhotoId, dataUrl);
-
-        photoViewImage.src=dataUrl;
-
-        render();
-
-        renderGallery();
-
-        alert("사진이 교체되었습니다.");
-
-    }catch{
-
-        alert("사진을 교체하지 못했습니다.");
-
-    }
-
-    replacePhotoInput.value="";
-
-};
-
-deletePhotoButton.onclick=async()=>{
-
-    if(!viewingPhotoId) return;
-
-    if(!confirm("이 사진을 삭제하시겠습니까?")) return;
-
-    const record=await getPhotoRecord(viewingPhotoId);
-
-    if(record){
-
-        const bucket=
-        buckets.find(b=>b.id===record.bucketId);
-
-        if(bucket){
-
-            await removePhotoFromBucket(
-                bucket,
-                viewingPhotoId
-            );
-
-        }else{
-
-            await deletePhotoRecord(viewingPhotoId);
-
-        }
-
-    }
-
-    closePhotoViewModal();
-
-    render();
-
-    renderGallery();
-
-};
-
-async function renderGallery(){
-
-    if(!galleryGrid) return;
-
-    galleryGrid.innerHTML="";
-
-    const photos=await getAllPhotosWithMeta();
-
-    galleryCount.textContent=`${photos.length}장`;
-
-    if(photos.length===0){
-
-        galleryGrid.innerHTML=`
-
-            <div class="galleryEmpty">
-
-                아직 기념 사진이 없습니다.<br>
-
-                버킷을 완료하고 사진을 남겨보세요.
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-    photos.forEach(photo=>{
-
-        const item=document.createElement("div");
-
-        item.className="galleryItem";
-
-        item.innerHTML=`
-
-            <img src="${photo.dataUrl}" alt="${photo.bucketTitle}">
-
-            <div class="galleryOverlay">
-
-                <div class="galleryTitle">
-
-                    ${photo.bucketTitle}
-
-                </div>
-
-                <div class="galleryMeta">
-
-                    ${new Date(photo.createdAt).toLocaleDateString("ko-KR")}
-
-                </div>
-
-            </div>
-
-        `;
-
-        item.onclick=()=>openPhotoView(photo);
-
-        galleryGrid.appendChild(item);
-
-    });
-
-}
-
-exportPhotosButton.onclick=async()=>{
-
-    const photos=await buildPhotosExport();
-
-    downloadJson({
-        version:BACKUP_VERSION,
-        type:"photos",
-        exportedAt:Date.now(),
-        photos
-    }, "bucket-photos-backup.json");
-
-};
-
-importPhotosButton.onclick=()=>{
-
-    importPhotosFile.click();
-
-};
-
-importPhotosFile.onchange=e=>{
-
-    const file=e.target.files[0];
-
-    if(!file) return;
-
-    const reader=new FileReader();
-
-    reader.onload=async()=>{
-
-        try{
-
-            const data=JSON.parse(reader.result);
-
-            const photos=
-            data.type==="photos"
-            ? data.photos
-            : data.photos || [];
-
-            if(!Array.isArray(photos) || photos.length===0){
-
-                alert("가져올 사진이 없습니다.");
-
-                return;
-
-            }
-
-            await restorePhotosExport(photos, false);
-
-            render();
-
-            renderGallery();
-
-            alert(`사진 ${photos.length}장 가져오기 완료`);
-
-        }catch{
-
-            alert("올바른 사진 백업 파일이 아닙니다.");
-
-        }
-
-        importPhotosFile.value="";
-
-    };
-
-    reader.readAsText(file);
-
-};
-
-/* ============================= */
-
-function todayString(){
-
-    const now=new Date();
-
-    const week=["일","월","화","수","목","금","토"];
-
-    return `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${week[now.getDay()]})`;
-
-}
-
-todayDate.textContent=todayString();
-
-/* ===== 사용자 정의 오늘의 문구 ===== */
-
-function loadCustomQuotes(){
-
-    try{
-
-        return JSON.parse(
-            localStorage.getItem(CUSTOM_QUOTE_KEY)
-        ) || [];
-
-    }catch{
-
-        return [];
-
-    }
-
-}
-
-function saveCustomQuotes(list){
-
-    localStorage.setItem(
-        CUSTOM_QUOTE_KEY,
-        JSON.stringify(list)
-    );
-
-    scheduleDriveSync();
-
-}
-
-function getAllQuotes(){
-
-    return quotes.concat(loadCustomQuotes());
-
-}
-
-function showRandomQuote(){
-
-    const pool = getAllQuotes();
-
-    todayQuote.textContent =
-    pool[
-        Math.floor(
-            Math.random() * pool.length
-        )
-    ];
-
-}
-
-function renderMyQuoteList(){
-
-    const custom = loadCustomQuotes();
-
-    if(custom.length === 0){
-
-        myQuoteList.innerHTML =
-        `<p class="myQuoteEmpty">아직 추가한 문구가 없습니다.</p>`;
-
-        return;
-
-    }
-
-    myQuoteList.innerHTML = custom.map((q, i) => `
-        <div class="myQuoteItem">
-            <p>${escapeHtml(q)}</p>
-            <button class="myQuoteDelete" data-index="${i}">✕</button>
-        </div>
-    `).join("");
-
-}
-
-function escapeHtml(str){
-
-    const div = document.createElement("div");
-
-    div.textContent = str;
-
-    return div.innerHTML;
-
-}
-
-showRandomQuote();
-
-addQuoteButton.addEventListener("click", () => {
-
-    quoteTextInput.value = "";
-
-    renderMyQuoteList();
-
-    quoteModal.classList.add("show");
-
-});
-
-quoteCloseButton.addEventListener("click", () => {
-
-    quoteModal.classList.remove("show");
-
-});
-
-quoteModal.addEventListener("click", (e) => {
-
-    if(e.target === quoteModal){
-
-        quoteModal.classList.remove("show");
-
-    }
-
-});
-
-quoteAddSaveButton.addEventListener("click", () => {
-
-    const text = quoteTextInput.value.trim();
-
-    if(!text){
-
-        alert("문구를 입력해주세요.");
-
-        return;
-
-    }
-
-    const custom = loadCustomQuotes();
-
-    custom.push(text);
-
-    saveCustomQuotes(custom);
-
-    quoteTextInput.value = "";
-
-    renderMyQuoteList();
-
-    showRandomQuote();
-
-});
-
-myQuoteList.addEventListener("click", (e) => {
-
-    const btn = e.target.closest(".myQuoteDelete");
-
-    if(!btn) return;
-
-    const index = Number(btn.dataset.index);
-
-    const custom = loadCustomQuotes();
-
-    custom.splice(index, 1);
-
-    saveCustomQuotes(custom);
-
-    renderMyQuoteList();
-
-    showRandomQuote();
-
-});
-
-/* ============================= */
-
-function saveStorage(){
-
-    localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(buckets)
-    );
-
-    scheduleDriveSync();
-
-}
-
-function loadStorage(){
-
-    const data=
-    localStorage.getItem(STORAGE_KEY);
-
-    if(!data) return;
-
-    try{
-
-        const parsed=JSON.parse(data);
-
-        if(Array.isArray(parsed)){
-
-            buckets=parsed;
-
-        }else{
-
-            throw new Error("저장된 데이터 형식이 배열이 아닙니다.");
-
-        }
-
-    }catch(err){
-
-        console.error("버킷 데이터를 불러오는 중 오류가 발생했습니다. 손상된 데이터를 백업하고 초기화합니다.", err);
-
-        try{
-
-            localStorage.setItem(STORAGE_KEY+"_corrupted_backup", data);
-
-        }catch(backupErr){
-
-            console.error("손상된 데이터 백업 실패:", backupErr);
-
-        }
-
-        buckets=[];
-
-    }
-
-}
-
-/* ============================= */
-
-function openModal(){
-
-    bucketModal.classList.add("show");
-
-}
-
-function closeModal(){
-
-    bucketModal.classList.remove("show");
-
-}
-
-addButton.onclick=()=>{
-
-    editingId=null;
-
-    titleInput.value="";
-
-    memoInput.value="";
-
-    categoryInput.value="여행";
-
-    dateInput.value="";
-
-    starInput.value="false";
-
-    document.getElementById("modalTitle").textContent=
-    "새 버킷리스트";
-
-    openModal();
-
-};
-
-cancelButton.onclick=closeModal;
-
-bucketModal.onclick=e=>{
-
-    if(e.target===bucketModal){
-
-        closeModal();
-
-    }
-
-};
-
-/* ============================= */
-
-saveButton.onclick=()=>{
-
-    const title=
-    titleInput.value.trim();
-
-    if(title===""){
-
-        alert("제목을 입력해주세요.");
-
-        return;
-
-    }
-
-    const bucket={
-
-        id:
-        editingId ??
-        Date.now(),
-
-        title,
-
-        memo:
-        memoInput.value.trim(),
-
-        category:
-        categoryInput.value,
-
-        date:
-        dateInput.value,
-
-        star:
-        starInput.value==="true",
-
-        completed:false,
-
-        created:
-        Date.now(),
-
-        photoIds:[]
-
-    };
-
-    if(editingId){
-
-        const index=
-        buckets.findIndex(
-        b=>b.id===editingId
-        );
-
-        bucket.completed=
-        buckets[index].completed;
-
-        bucket.created=
-        buckets[index].created;
-
-        bucket.photoIds=
-        [...(buckets[index].photoIds || [])];
-
-        buckets[index]=bucket;
-
-    }else{
-
-        buckets.push(bucket);
-
-    }
-
-    saveStorage();
-
-    closeModal();
-
-    render();
-
-};
-
-/* =======================================================
-   app.js - Part 2
-======================================================= */
-
-function getDday(date){
-
-    if(!date) return "날짜 없음";
-
-    const today = new Date();
-    today.setHours(0,0,0,0);
-
-    const target = new Date(date);
-
-    const diff =
-    Math.ceil(
-    (target-today)/(1000*60*60*24)
-    );
-
-    if(diff>0) return `D-${diff}`;
-
-    if(diff===0) return "D-Day";
-
-    return `D+${Math.abs(diff)}`;
-
-}
-
-/* ============================= */
-
-function updateStats(){
-
-    const total=buckets.length;
-
-    const done=
-    buckets.filter(
-    b=>b.completed
-    ).length;
-
-    const remain=
-    total-done;
-
-    totalCount.textContent=total;
-
-    doneCount.textContent=done;
-
-    remainCount.textContent=remain;
-
-    const percent=
-    total===0
-    ?0
-    :Math.round(done/total*100);
-
-    progressPercent.textContent=
-    percent+"%";
-
-    progressCircle.style.background=
-    `conic-gradient(
-        var(--blue)
-        ${percent*3.6}deg,
-        var(--track-bg)
-        0deg
-    )`;
-
-}
-
-/* ============================= */
-
-function renderRecent(){
-
-    recentBuckets.innerHTML="";
-
-    const latest=[...buckets]
-
-    .sort((a,b)=>b.created-a.created)
-
-    .slice(0,3);
-
-    if(latest.length===0){
-
-        recentBuckets.innerHTML=
-
-        `<p style="color:var(--sub);">
-
-        아직 목표가 없습니다.
-
-        </p>`;
-
-        return;
-
-    }
-
-    latest.forEach(item=>{
-
-        const div=
-        document.createElement("div");
-
-        div.className="recentItem";
-
-        div.innerHTML=`
-
-            <div>
-
-                <div class="recentTitle">
-
-                    ${item.title}
-
-                </div>
-
-                <div class="recentDate">
-
-                    ${getDday(item.date)}
-
-                </div>
-
-            </div>
-
-            <div>
-
-                ${item.star?"⭐":""}
-
-            </div>
-
-        `;
-
-        recentBuckets.appendChild(div);
-
-    });
-
-}
-
-/* ============================= */
-
-function render(){
-
-    let list=[...buckets];
-
-    const keyword=
-    searchInput.value
-    .trim()
-    .toLowerCase();
-
-    if(currentCategory!=="전체"){
-
-        list=list.filter(
-
-        b=>b.category===currentCategory
-
-        );
-
-    }
-
-    if(keyword){
-
-        list=list.filter(b=>
-
-        b.title
-        .toLowerCase()
-        .includes(keyword)
-
-        ||
-
-        b.memo
-        .toLowerCase()
-        .includes(keyword)
-
-        );
-
-    }
-
-    if(sortMode==="latest"){
-
-        list.sort(
-
-        (a,b)=>
-
-        b.created-a.created
-
-        );
-
-    }
-
-    if(sortMode==="star"){
-
-        list.sort(
-
-        (a,b)=>
-
-        Number(b.star)-Number(a.star)
-
-        );
-
-    }
-
-    bucketList.innerHTML="";
-
-    if(list.length===0){
-
-        bucketList.innerHTML=
-
-        `<div class="empty">
-
-        버킷리스트가 없습니다.
-
-        </div>`;
-
-        updateStats();
-
-        renderRecent();
-
-        return;
-
-    }
-
-    list.forEach(item=>{
-
-        const card=
-
-        document.createElement("div");
-
-        card.className=
-
-        `bucketCard
-        ${item.completed?"completed":""}`;
-
-        const photoButton=
-        item.completed && canAddMorePhotos(item)
-        ? `<button class="photoButton">${
-            getBucketPhotoCount(item)>0 ? "📷 추가" : "📷 사진"
-        }</button>`
-        : "";
-
-        card.innerHTML=`
-
-<div class="bucketHeader">
-
-<div class="bucketTitle">
-
-${item.title}
-
-</div>
-
-<div class="bucketStar">
-
-${item.star?"⭐":"☆"}
-
-</div>
-
-</div>
-
-<div class="bucketTags">
-
-<div class="tag">
-
-${item.category}
-
-</div>
-
-<div class="tag">
-
-${getDday(item.date)}
-
-</div>
-
-</div>
-
-<div class="bucketMemo">
-
-${item.memo||"메모 없음"}
-
-</div>
-
-<div class="bucketButtons">
-
-<button
-class="completeButton">
-
-${item.completed?"취소":"완료"}
-
-</button>
-
-${photoButton}
-
-<button
-class="editButton">
-
-수정
-
-</button>
-
-<button
-class="deleteButton">
-
-삭제
-
-</button>
-
-</div>
-
-`;
-
-        bucketList.appendChild(card);
-
-        renderBucketPhotos(item, card);
-
-        /* 완료 */
-
-        card
-        .querySelector(".completeButton")
-        .onclick=async()=>{
-
-            if(!item.completed){
-
-                openCelebrateModal(item);
-
-                return;
-
-            }
-
-            item.completed=false;
-
-            saveStorage();
-
-            render();
-
-        };
-
-        const photoBtn=
-        card.querySelector(".photoButton");
-
-        if(photoBtn){
-
-            photoBtn.onclick=()=>{
-
-                openCelebrateModal(item, "add");
-
-            };
-
-        }
-
-        /* 삭제 */
-
-        card
-        .querySelector(".deleteButton")
-        .onclick=async()=>{
-
-            if(confirm("삭제하시겠습니까?")){
-
-                await deleteAllBucketPhotos(item);
-
-                buckets=
-
-                buckets.filter(
-
-                b=>b.id!==item.id
-
-                );
-
-                saveStorage();
-
-                render();
-
-            }
-
-        };
-
-        /* 수정 */
-
-        card
-        .querySelector(".editButton")
-        .onclick=()=>{
-
-            editingId=item.id;
-
-            titleInput.value=item.title;
-
-            memoInput.value=item.memo;
-
-            categoryInput.value=item.category;
-
-            dateInput.value=item.date;
-
-            starInput.value=item.star;
-
-            document.getElementById("modalTitle").textContent=
-
-            "버킷 수정";
-
-            openModal();
-
-        };
-
-    });
-
-    updateStats();
-
-    renderRecent();
-
-}
-
-/* =======================================================
-   app.js - Part 3
-======================================================= */
-
-/* ============================= */
-/* 페이지 전환 */
-/* ============================= */
-
-function showPage(pageId){
-
-    pages.forEach(page=>{
-
-        page.classList.remove("active");
-
-    });
-
-    document
-    .getElementById(pageId)
-    .classList
-    .add("active");
-
-    navButtons.forEach(btn=>{
-
-        btn.classList.remove("active");
-
-        if(btn.dataset.page===pageId){
-
-            btn.classList.add("active");
-
-        }
-
-    });
-
-}
-
-navButtons.forEach(button=>{
-
-    button.onclick=()=>{
-
-        showPage(button.dataset.page);
-
-        if(button.dataset.page==="statsPage"){
-
-            renderStats();
-
-        }
-
-        if(button.dataset.page==="galleryPage"){
-
-            renderGallery();
-
-        }
-
-    };
-
-});
-
-/* ============================= */
-/* 검색 */
-/* ============================= */
-
-searchInput.addEventListener(
-
-    "input",
-
-    render
-
-);
-
-/* ============================= */
-/* 카테고리 */
-/* ============================= */
-
-categoryButtons.forEach(button=>{
-
-    button.onclick=()=>{
-
-        categoryButtons.forEach(btn=>
-
-            btn.classList.remove("active")
-
-        );
-
-        button.classList.add("active");
-
-        currentCategory=
-
-        button.dataset.category;
-
-        render();
-
-    };
-
-});
-
-/* ============================= */
-/* 정렬 */
-/* ============================= */
-
-document
-.getElementById("sortButton")
-.onclick=()=>{
-
-    if(sortMode==="latest"){
-
-        sortMode="star";
-
-        alert("⭐ 중요도순 정렬");
-
-    }else{
-
-        sortMode="latest";
-
-        alert("🕒 최신순 정렬");
-
-    }
-
-    render();
-
-};
-
-/* ============================= */
-/* 테마 (기본 / 다크 / 애플 / 글래스) */
-/* ============================= */
-
-const THEME_KEY = "bucket_theme";
-const THEMES = ["default", "dark", "apple", "glass"];
-
-const THEME_ICONS = {
-    default: "🌙",
-    dark: "☀️",
-    apple: "🍏",
-    glass: "💧"
-};
-
-const THEME_META_COLORS = {
-    default: "#F5F7FB",
-    dark: "#0F172A",
-    apple: "#F5F5F7",
-    glass: "#DBE6FF"
-};
-
-function getStoredTheme(){
-
-    const saved = localStorage.getItem(THEME_KEY);
-
-    // 이전 버전과의 호환 (light -> default)
-    if(saved === "light" || !THEMES.includes(saved)){
-
-        return "default";
-
-    }
-
-    return saved;
-
-}
-
-function setTheme(mode){
-
-    if(!THEMES.includes(mode)) mode = "default";
-
-    document.body.classList.remove("dark", "apple", "glass");
-
-    if(mode !== "default"){
-
-        document.body.classList.add(mode);
-
-    }
-
-    localStorage.setItem(THEME_KEY, mode);
-
-    if(themeButton){
-
-        themeButton.textContent = THEME_ICONS[mode];
-
-    }
-
-    const metaTheme = document.querySelector('meta[name="theme-color"]');
-
-    if(metaTheme){
-
-        metaTheme.setAttribute("content", THEME_META_COLORS[mode]);
-
-    }
-
-    themeOptionButtons.forEach(btn=>{
-
-        btn.classList.toggle(
-            "active",
-            btn.dataset.theme === mode
-        );
-
-    });
-
-}
-
-function applyTheme(){
-
-    setTheme(getStoredTheme());
-
-}
-
-themeOptionButtons.forEach(btn=>{
-
-    btn.onclick = () => setTheme(btn.dataset.theme);
-
-});
-
-themeButton.onclick = () => {
-
-    const current = getStoredTheme();
-
-    const nextIndex = (THEMES.indexOf(current) + 1) % THEMES.length;
-
-    setTheme(THEMES[nextIndex]);
-
-};
-
-/* ============================= */
-/* 구글 드라이브 자동 저장 */
-/* ============================= */
-
-function buildBackupPayload(){
-
-    return buildPhotosExport().then(photos => ({
-        version: BACKUP_VERSION,
-        type: "full",
-        exportedAt: Date.now(),
-        buckets,
-        customQuotes: loadCustomQuotes(),
-        photos
-    }));
-
-}
-
-function isDriveConnected(){
-
-    return localStorage.getItem(DRIVE_CONNECTED_KEY) === "1";
-
-}
-
-function setDriveConnected(connected){
-
-    if(connected){
-
-        localStorage.setItem(DRIVE_CONNECTED_KEY, "1");
-
-    }else{
-
-        localStorage.removeItem(DRIVE_CONNECTED_KEY);
-
-        localStorage.removeItem(DRIVE_FILE_ID_KEY);
-
-        localStorage.removeItem(DRIVE_LAST_SYNC_KEY);
-
-    }
-
-    updateDriveUI();
-
-}
-
-function formatSyncTime(ts){
-
-    const d = new Date(ts);
-
-    const mo = d.getMonth() + 1;
-
-    const day = d.getDate();
-
-    const hh = String(d.getHours()).padStart(2, "0");
-
-    const mm = String(d.getMinutes()).padStart(2, "0");
-
-    return `${mo}월 ${day}일 ${hh}:${mm} 저장됨`;
-
-}
-
-function updateDriveUI(syncOverride){
-
-    if(!googleDriveStatus) return;
-
-    googleDriveStatus.textContent =
-    isDriveConnected() ? "연결됨" : "연결하기";
-
-    if(!googleDriveTime) return;
-
-    if(syncOverride !== undefined){
-
-        googleDriveTime.textContent = syncOverride;
-
-        return;
-
-    }
-
-    if(!isDriveConnected()){
-
-        googleDriveTime.textContent = "";
-
-        return;
-
-    }
-
-    const last = localStorage.getItem(DRIVE_LAST_SYNC_KEY);
-
-    googleDriveTime.textContent =
-    last ? formatSyncTime(Number(last)) : "동기화 대기 중";
-
-}
-
-function initGoogleAuth(){
-
-    if(!window.google || !google.accounts || !google.accounts.oauth2){
-
-        return;
-
-    }
-
-    googleTokenClient = google.accounts.oauth2.initTokenClient({
-
-        client_id: GOOGLE_CLIENT_ID,
-        scope: DRIVE_SCOPE,
-
-        callback: (response) => {
-
-            if(response && response.access_token){
-
-                googleAccessToken = response.access_token;
-
-                setDriveConnected(true);
-
-                syncToDrive();
-
-            }else{
-
-                updateDriveUI();
-
-            }
-
-        }
-
-    });
-
-    if(isDriveConnected()){
-
-        try{
-
-            googleTokenClient.requestAccessToken({ prompt: "" });
-
-        }catch{
-
-            /* 자동 로그인 실패시 조용히 무시 */
-
-        }
-
-    }
-
-}
-
-window.onGisLoad = initGoogleAuth;
-
-if(window.google && google.accounts && google.accounts.oauth2){
-
-    initGoogleAuth();
-
-}
-
-function connectGoogleDrive(){
-
-    if(GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID")){
-
-        alert("구글 드라이브 기능을 쓰려면 app.js의 GOOGLE_CLIENT_ID를 먼저 설정해야 합니다.");
-
-        return;
-
-    }
-
-    if(!googleTokenClient){
-
-        alert("구글 로그인 준비 중입니다. 잠시 후 다시 시도해주세요.");
-
-        return;
-
-    }
-
-    googleTokenClient.requestAccessToken({ prompt: "consent" });
-
-}
-
-function disconnectGoogleDrive(){
-
-    if(googleAccessToken && window.google && google.accounts){
-
-        google.accounts.oauth2.revoke(googleAccessToken, () => {});
-
-    }
-
-    googleAccessToken = null;
-
-    setDriveConnected(false);
-
-}
-
-googleDriveButton.onclick = () => {
-
-    if(isDriveConnected()){
-
-        if(confirm("구글 드라이브 자동 저장을 해제할까요?")){
-
-            disconnectGoogleDrive();
-
-        }
-
-    }else{
-
-        connectGoogleDrive();
-
-    }
-
-};
-
-function scheduleDriveSync(){
-
-    if(!isDriveConnected()) return;
-
-    clearTimeout(driveSyncTimer);
-
-    driveSyncTimer = setTimeout(syncToDrive, 2000);
-
-}
-
-async function ensureAccessToken(){
-
-    if(googleAccessToken) return googleAccessToken;
-
-    if(!googleTokenClient) return null;
-
-    return new Promise((resolve) => {
-
-        const originalCallback = googleTokenClient.callback;
-
-        googleTokenClient.callback = (response) => {
-
-            googleTokenClient.callback = originalCallback;
-
-            if(response && response.access_token){
-
-                googleAccessToken = response.access_token;
-
-                resolve(response.access_token);
-
-            }else{
-
-                resolve(null);
-
-            }
-
-        };
-
-        googleTokenClient.requestAccessToken({ prompt: "" });
-
-    });
-
-}
-
-async function findDriveFileId(token){
-
-    const cached = localStorage.getItem(DRIVE_FILE_ID_KEY);
-
-    if(cached) return cached;
-
-    const query =
-    encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
-
-    const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name)`,
-        { headers: { Authorization: `Bearer ${token}` } }
-    );
-
-    if(!res.ok) return null;
-
-    const data = await res.json();
-
-    if(data.files && data.files.length > 0){
-
-        localStorage.setItem(DRIVE_FILE_ID_KEY, data.files[0].id);
-
-        return data.files[0].id;
-
-    }
-
-    return null;
-
-}
-
-async function uploadNewDriveFile(token, payload){
-
-    const boundary = "bucket_backup_boundary";
-
-    const metadata = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
-
-    const body =
-    `--${boundary}\r\n` +
-    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-    `${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\n` +
-    `Content-Type: application/json\r\n\r\n` +
-    `${JSON.stringify(payload)}\r\n` +
-    `--${boundary}--`;
-
-    const res = await fetch(
-        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
-        {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": `multipart/related; boundary=${boundary}`
-            },
-            body
-        }
-    );
-
-    if(!res.ok) throw new Error("업로드 실패");
-
-    const data = await res.json();
-
-    localStorage.setItem(DRIVE_FILE_ID_KEY, data.id);
-
-}
-
-async function updateDriveFile(token, fileId, payload){
-
-    const res = await fetch(
-        `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
-        {
-            method: "PATCH",
-            headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        }
-    );
-
-    if(res.status === 404){
-
-        localStorage.removeItem(DRIVE_FILE_ID_KEY);
-
-        throw new Error("파일 없음");
-
-    }
-
-    if(!res.ok) throw new Error("업데이트 실패");
-
-}
-
-async function syncToDrive(){
-
-    if(!isDriveConnected() || driveSyncInProgress) return;
-
-    driveSyncInProgress = true;
-
-    updateDriveUI("저장 중...");
-
-    try{
-
-        const token = await ensureAccessToken();
-
-        if(!token){
-
-            updateDriveUI("로그인 필요");
-
-            driveSyncInProgress = false;
-
-            return;
-
-        }
-
-        const payload = await buildBackupPayload();
-
-        let fileId = await findDriveFileId(token);
-
-        if(fileId){
-
-            try{
-
-                await updateDriveFile(token, fileId, payload);
-
-            }catch{
-
-                await uploadNewDriveFile(token, payload);
-
-            }
-
-        }else{
-
-            await uploadNewDriveFile(token, payload);
-
-        }
-
-        const now = Date.now();
-
-        localStorage.setItem(DRIVE_LAST_SYNC_KEY, String(now));
-
-        updateDriveUI();
-
-    }catch{
-
-        updateDriveUI("저장 실패, 재시도 예정");
-
-    }finally{
-
-        driveSyncInProgress = false;
-
-    }
-
-}
-
-updateDriveUI();
-
-/* ============================= */
-/* JSON 백업 */
-/* ============================= */
-
-exportButton.onclick=async()=>{
-
-    const photos=await buildPhotosExport();
-
-    downloadJson({
-        version:BACKUP_VERSION,
-        type:"full",
-        exportedAt:Date.now(),
-        buckets,
-        photos
-    }, "bucket-full-backup.json");
-
-};
-
-/* ============================= */
-/* JSON 가져오기 */
-/* ============================= */
-
-importButton.onclick=()=>{
-
-    importFile.click();
-
-};
-
-importFile.onchange=e=>{
-
-    const file=
-
-    e.target.files[0];
-
-    if(!file) return;
-
-    const reader=
-
-    new FileReader();
-
-    reader.onload=async()=>{
-
-        try{
-
-            const data=JSON.parse(reader.result);
-
-            if(Array.isArray(data)){
-
-                buckets=data;
-
-                normalizeBuckets();
-
-                saveStorage();
-
-                render();
-
-                alert("가져오기 완료");
-
-                importFile.value="";
-
-                return;
-
-            }
-
-            if(data.buckets){
-
-                buckets=data.buckets;
-
-                normalizeBuckets();
-
-                if(Array.isArray(data.photos)){
-
-                    await restorePhotosExport(
-                        data.photos,
-                        true
-                    );
-
-                }
-
-                saveStorage();
-
-                render();
-
-                renderGallery();
-
-                alert("전체 백업 가져오기 완료");
-
-            }else{
-
-                alert("올바른 JSON 파일이 아닙니다.");
-
-            }
-
-        }
-
-        catch{
-
-            alert("올바른 JSON 파일이 아닙니다.");
-
-        }
-
-        importFile.value="";
-
-    };
-
-    reader.readAsText(file);
-
-};
-
-/* ============================= */
-/* 전체 삭제 */
-/* ============================= */
-
-deleteAllButton.onclick=async()=>{
-
-    if(
-
-    confirm(
-
-    "모든 버킷을 삭제하시겠습니까?"
-
-    )
-
-    ){
-
-        for(const bucket of buckets){
-
-            await deleteAllBucketPhotos(bucket);
-
-        }
-
-        buckets=[];
-
-        saveStorage();
-
-        render();
-
-    }
-
-};
-
-/* ============================= */
-/* 통계 */
-/* ============================= */
-
-function renderStats(){
-
-    const container=
-
-    document.getElementById(
-
-    "statsContainer"
-
-    );
-
-    container.innerHTML="";
-
-    const total=buckets.length;
-
-    const done=
-
-    buckets.filter(
-
-    b=>b.completed
-
-    ).length;
-
-    const percent=
-
-    total===0
-
-    ?0
-
-    :Math.round(
-
-    done/total*100
-
-    );
-
-    const card=
-
-    document.createElement("div");
-
-    card.className="statsCard";
-
-    card.innerHTML=`
-
-<h3>
-
-전체 달성률
-
-</h3>
-
-<div class="chartBar">
-
-<div
-class="chartFill"
-style="width:${percent}%">
-
-</div>
-
-</div>
-
-<p
-style="margin-top:16px;">
-
-${percent}% 완료
-
-</p>
-
-`;
-
-    container.appendChild(card);
-
-        /* ============================= */
-    /* 카테고리 통계 */
-    /* ============================= */
-
-    const categories = {};
-
-    buckets.forEach(bucket => {
-
-        categories[bucket.category] =
-            (categories[bucket.category] || 0) + 1;
-
-    });
-
-    Object.keys(categories).forEach(category => {
-
-        const percent =
-            total === 0
-            ? 0
-            : Math.round(categories[category] / total * 100);
-
-        const card = document.createElement("div");
-
-        card.className = "statsCard";
-
-        card.innerHTML = `
-
-            <h3>${category}</h3>
-
-            <div class="chartBar">
-
-                <div
-                    class="chartFill"
-                    style="width:${percent}%">
-                </div>
-
-            </div>
-
-            <p style="margin-top:14px;">
-
-                ${categories[category]}개 (${percent}%)
+            <img
+                id="photoViewImage"
+                alt="기념 사진">
+
+            <p id="photoViewTitle"></p>
+
+            <p
+                id="photoViewBucket"
+                class="photoViewBucket">
 
             </p>
 
-        `;
+            <div class="photoViewActions">
 
-        container.appendChild(card);
+                <button
+                    id="replacePhotoButton"
+                    class="photoActionButton replace">
 
-    });
+                    교체
 
-}
+                </button>
 
-/* ============================= */
-/* 최초 실행 */
-/* ============================= */
+                <button
+                    id="deletePhotoButton"
+                    class="photoActionButton delete">
 
-async function init(){
+                    삭제
 
-    try{
+                </button>
 
-        loadStorage();
+            </div>
 
-        normalizeBuckets();
+            <input
+                type="file"
+                id="replacePhotoInput"
+                accept="image/*"
+                hidden>
 
-    }catch(err){
+        </div>
 
-        console.error("초기 데이터 로딩 중 오류:", err);
+    </div>
 
-        buckets=[];
+    <!-- ========================= -->
+    <!-- BOTTOM NAVIGATION -->
+    <!-- ========================= -->
 
-    }
+    <nav class="bottomNav">
 
-    try{
+        <button
+            class="navButton active"
+            data-page="homePage">
 
-        await migrateLegacyPhotos();
+            <span>🏠</span>
 
-    }catch(err){
+            <small>홈</small>
 
-        console.error("사진 데이터 마이그레이션 중 오류:", err);
+        </button>
 
-    }
+        <button
+            class="navButton"
+            data-page="bucketPage">
 
-    try{
+            <span>🎯</span>
 
-        applyTheme();
+            <small>버킷</small>
 
-    }catch(err){
+        </button>
 
-        console.error("테마 초기화 중 오류:", err);
+        <button
+            class="navButton"
+            data-page="galleryPage">
 
-    }
+            <span>📷</span>
 
-    render();
+            <small>앨범</small>
 
-}
+        </button>
 
-init();
+        <button
+            class="navButton"
+            data-page="statsPage">
 
-/* ============================= */
-/* ESC 키 */
-/* ============================= */
+            <span>📊</span>
 
-window.addEventListener(
+            <small>통계</small>
 
-    "keydown",
+        </button>
 
-    e=>{
+        <button
+            class="navButton"
+            data-page="settingsPage">
 
-        if(e.key==="Escape"){
+            <span>⚙️</span>
 
-            closeModal();
+            <small>설정</small>
 
-            closeCelebrateModal();
+        </button>
 
-            closePhotoViewModal();
+    </nav>
 
-        }
+    <script src="app.js"></script>
 
-    }
+</body>
 
-);
-
-/* ============================= */
-/* 모바일에서 모달 바깥 클릭 */
-/* ============================= */
-
-bucketModal.addEventListener(
-
-    "click",
-
-    e=>{
-
-        if(e.target===bucketModal){
-
-            closeModal();
-
-        }
-
-    }
-
-);
-
-/* ============================= */
-/* iOS Safari 화면 높이 보정 */
-/* ============================= */
-
-function setViewportHeight(){
-
-    document.documentElement.style.setProperty(
-
-        "--vh",
-
-        `${window.innerHeight*0.01}px`
-
-    );
-
-}
-
-window.addEventListener(
-
-    "resize",
-
-    setViewportHeight
-
-);
-
-setViewportHeight();
-
-/* ============================= */
-/* V0.3 END */
-/* ============================= */
+</html>

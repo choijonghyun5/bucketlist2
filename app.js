@@ -2818,11 +2818,11 @@ async function findDriveFileId(token){
 
 }
 
-async function uploadNewDriveFile(token, payload){
+async function uploadDriveFileAs(token, payload, name){
 
     const boundary = "bucket_backup_boundary";
 
-    const metadata = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
+    const metadata = { name, mimeType: "application/json" };
 
     const body =
     `--${boundary}\r\n` +
@@ -2849,7 +2849,75 @@ async function uploadNewDriveFile(token, payload){
 
     const data = await res.json();
 
-    localStorage.setItem(DRIVE_FILE_ID_KEY, data.id);
+    return data.id;
+
+}
+
+async function uploadNewDriveFile(token, payload){
+
+    const id = await uploadDriveFileAs(token, payload, DRIVE_FILE_NAME);
+
+    localStorage.setItem(DRIVE_FILE_ID_KEY, id);
+
+}
+
+function formatSnapshotTimestamp(date){
+
+    const pad = n => String(n).padStart(2, "0");
+
+    return (
+        date.getFullYear() +
+        pad(date.getMonth()+1) +
+        pad(date.getDate()) + "_" +
+        pad(date.getHours()) +
+        pad(date.getMinutes()) +
+        pad(date.getSeconds())
+    );
+
+}
+
+/* 전체 삭제처럼 되돌릴 수 없는 작업을 하기 직전에,
+   현재 상태를 별도의 날짜별 파일로 드라이브에 저장해 둔다.
+   기존 자동저장 파일(bucket_app_backup.json)은 건드리지 않으므로
+   삭제 후 자동저장이 그 파일을 빈 상태로 덮어써도 이 스냅샷은 남는다. */
+async function backupSnapshotToDrive(reason){
+
+    if(!isDriveConnected()) return false;
+
+    try{
+
+        updateDriveUI("삭제 전 백업 저장 중...");
+
+        const token = await ensureAccessToken();
+
+        if(!token){
+
+            updateDriveUI("로그인 필요");
+
+            return false;
+
+        }
+
+        const payload = await buildBackupPayload();
+
+        payload.type = reason || "snapshot";
+
+        const name =
+        `bucket_app_backup_삭제전_${formatSnapshotTimestamp(new Date())}.json`;
+
+        await uploadDriveFileAs(token, payload, name);
+
+        updateDriveUI();
+
+        return true;
+
+    }catch{
+
+        updateDriveUI("스냅샷 저장 실패");
+
+        return false;
+
+    }
 
 }
 
@@ -3071,6 +3139,8 @@ deleteAllButton.onclick=async()=>{
     )
 
     ){
+
+        await backupSnapshotToDrive("전체삭제전");
 
         for(const bucket of buckets){
 

@@ -6,6 +6,9 @@
 const STORAGE_KEY = "bucket_v02";
 const CUSTOM_QUOTE_KEY = "bucket_custom_quotes";
 
+const toastContainer =
+document.getElementById("toastContainer");
+
 /* ===== Google Drive 자동 저장 설정 =====
    1) https://console.cloud.google.com 에서 프로젝트 생성
    2) API 및 서비스 > 라이브러리 > "Google Drive API" 사용 설정
@@ -39,6 +42,7 @@ let celebrateMode = "complete";
 
 let googleAccessToken = null;
 let googleTokenClient = null;
+let googleManualConnect = false;
 let driveSyncTimer = null;
 let driveSyncInProgress = false;
 
@@ -2250,6 +2254,49 @@ document
 };
 
 /* ============================= */
+/* 토스트 / 안내문구 */
+/* ============================= */
+
+function showToast(message, options={}){
+
+    if(!toastContainer) return;
+
+    const {
+        icon = "💡",
+        duration = 6000
+    } = options;
+
+    const toast = document.createElement("div");
+
+    toast.className = "toast";
+
+    toast.innerHTML = `
+        <span class="toastIcon">${icon}</span>
+        <span class="toastBody">${message}</span>
+        <button class="toastClose" aria-label="닫기">✕</button>
+    `;
+
+    const removeToast = () => {
+
+        toast.classList.add("toastOut");
+
+        setTimeout(() => toast.remove(), 280);
+
+    };
+
+    toast.querySelector(".toastClose").onclick = removeToast;
+
+    toastContainer.appendChild(toast);
+
+    if(duration > 0){
+
+        setTimeout(removeToast, duration);
+
+    }
+
+}
+
+/* ============================= */
 /* 최초 방문 안내 (홈 화면에 추가) */
 /* ============================= */
 
@@ -2282,11 +2329,13 @@ function maybeShowWelcomeGuide(){
 
     if(!welcomeModal) return;
 
-    if(localStorage.getItem(WELCOME_KEY)) return;
+    // 세션 저장소 사용: 브라우저/앱을 나갔다가 다시 들어오면 새 세션으로
+    // 인식되어 안내가 다시 표시됩니다.
+    if(sessionStorage.getItem(WELCOME_KEY)) return;
 
     if(isStandaloneApp()){
 
-        localStorage.setItem(WELCOME_KEY, "true");
+        sessionStorage.setItem(WELCOME_KEY, "true");
 
         return;
 
@@ -2306,7 +2355,7 @@ function closeWelcomeGuide(){
 
     }
 
-    localStorage.setItem(WELCOME_KEY, "true");
+    sessionStorage.setItem(WELCOME_KEY, "true");
 
 }
 
@@ -2579,11 +2628,22 @@ function initGoogleAuth(){
 
                 syncToDrive();
 
+                if(googleManualConnect){
+
+                    showToast(
+                        "구글 드라이브에 자동으로 백업됩니다. 목표와 사진이 안전하게 저장돼요.",
+                        { icon: "☁️" }
+                    );
+
+                }
+
             }else{
 
                 updateDriveUI();
 
             }
+
+            googleManualConnect = false;
 
         }
 
@@ -2630,6 +2690,8 @@ function connectGoogleDrive(){
         return;
 
     }
+
+    googleManualConnect = true;
 
     googleTokenClient.requestAccessToken({ prompt: "consent" });
 

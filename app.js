@@ -41,6 +41,7 @@ let viewingPhotoId = null;
 let celebrateMode = "complete";
 
 let googleAccessToken = null;
+let googleTokenExpiry = 0; // ms epoch, 토큰 만료 예정 시각
 let googleTokenClient = null;
 let googleManualConnect = false;
 let driveSyncTimer = null;
@@ -2541,22 +2542,37 @@ function initGoogleAuth(){
         client_id: GOOGLE_CLIENT_ID,
         scope: DRIVE_SCOPE,
 
-        callback: (response) => {
+        callback: async (response) => {
 
             if(response && response.access_token){
 
                 googleAccessToken = response.access_token;
 
+                googleTokenExpiry = Date.now() + (Number(response.expires_in || 3600) * 1000) - 60000;
+
                 setDriveConnected(true);
 
-                syncToDrive();
+                const manualConnect = googleManualConnect;
 
-                if(googleManualConnect){
+                const backupOk = await syncToDrive();
 
-                    showToast(
-                        "구글 드라이브에 자동으로 백업됩니다. 목표와 사진이 안전하게 저장돼요.",
-                        { icon: "☁️" }
-                    );
+                if(manualConnect){
+
+                    if(backupOk){
+
+                        showToast(
+                            "구글 드라이브 연결 및 백업이 완료됐어요. 목표와 사진이 안전하게 저장돼요.",
+                            { icon: "☁️" }
+                        );
+
+                    }else{
+
+                        showToast(
+                            "구글 드라이브에 연결됐지만 백업 저장에는 실패했어요. 잠시 후 다시 시도해주세요.",
+                            { icon: "⚠️" }
+                        );
+
+                    }
 
                 }
 
@@ -2567,6 +2583,15 @@ function initGoogleAuth(){
             }
 
             googleManualConnect = false;
+
+        },
+
+        error_callback: () => {
+
+            // 팝업이 차단되었거나 사용자가 취소한 경우에도 UI가 "저장 중..."에 멈추지 않도록 처리
+            googleManualConnect = false;
+
+            updateDriveUI(isDriveConnected() ? "로그인 필요" : "");
 
         }
 
@@ -2630,6 +2655,8 @@ function disconnectGoogleDrive(){
 
     googleAccessToken = null;
 
+    googleTokenExpiry = 0;
+
     setDriveConnected(false);
 
 }
@@ -2677,33 +2704,68 @@ async function syncToDriveNow(){
 
 async function ensureAccessToken(){
 
-    if(googleAccessToken) return googleAccessToken;
+    // 캐시된 토큰이 아직 유효하면 그대로 사용
+    if(googleAccessToken && Date.now() < googleTokenExpiry) return googleAccessToken;
 
     if(!googleTokenClient) return null;
 
+    googleAccessToken = null; // 만료된 토큰은 폐기하고 새로 발급받는다
+
     return new Promise((resolve) => {
 
-        const originalCallback = googleTokenClient.callback;
+        let settled = false;
 
-        googleTokenClient.callback = (response) => {
+        const originalCallback = googleTokenClient.callback;
+        const originalErrorCallback = googleTokenClient.error_callback;
+
+        const finish = (token) => {
+
+            if(settled) return;
+
+            settled = true;
+
+            clearTimeout(timeoutId);
 
             googleTokenClient.callback = originalCallback;
+            googleTokenClient.error_callback = originalErrorCallback;
+
+            resolve(token);
+
+        };
+
+        // 팝업 차단, 네트워크 문제 등으로 콜백이 아예 호출되지 않는 경우를 대비한 안전장치.
+        // 이게 없으면 driveSyncInProgress가 true로 계속 남아 "저장 중..."에서 멈춘다.
+        const timeoutId = setTimeout(() => finish(null), 15000);
+
+        googleTokenClient.callback = (response) => {
 
             if(response && response.access_token){
 
                 googleAccessToken = response.access_token;
 
-                resolve(response.access_token);
+                googleTokenExpiry = Date.now() + (Number(response.expires_in || 3600) * 1000) - 60000;
+
+                finish(response.access_token);
 
             }else{
 
-                resolve(null);
+                finish(null);
 
             }
 
         };
 
-        googleTokenClient.requestAccessToken({ prompt: "" });
+        googleTokenClient.error_callback = () => finish(null);
+
+        try{
+
+            googleTokenClient.requestAccessToken({ prompt: "" });
+
+        }catch{
+
+            finish(null);
+
+        }
 
     });
 
@@ -2722,6 +2784,8 @@ async function findDriveFileId(token){
         `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name)`,
         { headers: { Authorization: `Bearer ${token}` } }
     );
+
+    if(res.status === 401){ googleAccessToken = null; googleTokenExpiry = 0; throw new Error("토큰 만료"); }
 
     if(!res.ok) return null;
 
@@ -2765,6 +2829,8 @@ async function uploadDriveFileAs(token, payload, name){
             body
         }
     );
+
+    if(res.status === 401){ googleAccessToken = null; googleTokenExpiry = 0; throw new Error("토큰 만료"); }
 
     if(!res.ok) throw new Error("업로드 실패");
 
@@ -2856,6 +2922,8 @@ async function updateDriveFile(token, fileId, payload){
         }
     );
 
+    if(res.status === 401){ googleAccessToken = null; googleTokenExpiry = 0; throw new Error("토큰 만료"); }
+
     if(res.status === 404){
 
         localStorage.removeItem(DRIVE_FILE_ID_KEY);
@@ -2868,9 +2936,11 @@ async function updateDriveFile(token, fileId, payload){
 
 }
 
-async function syncToDrive(){
+async function syncToDrive(isRetry){
 
-    if(!isDriveConnected() || driveSyncInProgress) return;
+    if(!isDriveConnected()) return false;
+
+    if(driveSyncInProgress) return false;
 
     driveSyncInProgress = true;
 
@@ -2884,9 +2954,7 @@ async function syncToDrive(){
 
             updateDriveUI("로그인 필요");
 
-            driveSyncInProgress = false;
-
-            return;
+            return false;
 
         }
 
@@ -2918,9 +2986,22 @@ async function syncToDrive(){
 
         updateDriveUI();
 
-    }catch{
+        return true;
+
+    }catch(e){
+
+        // 토큰 만료로 실패한 경우, 새 토큰을 받아 한 번 더 자동으로 재시도한다
+        if(!isRetry && String(e && e.message) === "토큰 만료"){
+
+            driveSyncInProgress = false;
+
+            return await syncToDrive(true);
+
+        }
 
         updateDriveUI("저장 실패, 재시도 예정");
+
+        return false;
 
     }finally{
 
@@ -3298,4 +3379,4 @@ setViewportHeight();
 
 /* ============================= */
 /* V0.3 END */
-/* ============================= */
+/* ============================= */
